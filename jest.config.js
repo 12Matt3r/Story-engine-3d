@@ -13,6 +13,10 @@ export default {
   transform: {
     "^.+\\.js$": "babel-jest"
   },
+  transformIgnorePatterns: [
+    "/node_modules/(?!three/.*)" // Allow 'three' and its sub-paths to be transformed
+  ],
+  // moduleNameMapper for 'three' removed, will rely on manual mock or node_modules resolution
   // Automatically clear mock calls, instances, contexts and results before every test
   clearMocks: true,
 };

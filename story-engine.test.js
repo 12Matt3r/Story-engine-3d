@@ -327,4 +327,158 @@ describe('StoryEngine', () => {
       // Check console.warn was called (optional, requires more setup or a global spy)
     });
   });
+
+  describe('updateSanity(change)', () => {
+    let spyLogEvent;
+
+    beforeEach(() => {
+      // Reset sanity to a baseline for each test
+      storyEngine.playerData.sanity = 50;
+      spyLogEvent = jest.spyOn(storyEngine, 'logEvent');
+    });
+
+    afterEach(() => {
+        spyLogEvent.mockRestore();
+    });
+
+    it('should increase sanity correctly for a positive change', () => {
+      storyEngine.updateSanity(10);
+      expect(storyEngine.playerData.sanity).toBe(60);
+      expect(spyLogEvent).toHaveBeenCalledWith('Sanity changed by +10. Current sanity: 60', 'system_internal');
+    });
+
+    it('should decrease sanity correctly for a negative change', () => {
+      storyEngine.updateSanity(-10);
+      expect(storyEngine.playerData.sanity).toBe(40);
+      expect(spyLogEvent).toHaveBeenCalledWith('Sanity changed by -10. Current sanity: 40', 'system_internal');
+    });
+
+    it('should clamp sanity at 100 if increase exceeds maximum', () => {
+      storyEngine.updateSanity(60); // 50 + 60 = 110, should clamp to 100
+      expect(storyEngine.playerData.sanity).toBe(100);
+      expect(spyLogEvent).toHaveBeenCalledWith('Sanity changed by +60. Current sanity: 100', 'system_internal');
+    });
+
+    it('should maintain sanity at 100 if already at maximum and positive change applied', () => {
+      storyEngine.playerData.sanity = 100;
+      storyEngine.updateSanity(10);
+      expect(storyEngine.playerData.sanity).toBe(100);
+      expect(spyLogEvent).toHaveBeenCalledWith('Sanity changed by +10. Current sanity: 100', 'system_internal');
+    });
+
+    it('should clamp sanity at 0 if decrease exceeds minimum', () => {
+      storyEngine.updateSanity(-60); // 50 - 60 = -10, should clamp to 0
+      expect(storyEngine.playerData.sanity).toBe(0);
+      expect(spyLogEvent).toHaveBeenCalledWith('Sanity changed by -60. Current sanity: 0', 'system_internal');
+    });
+
+    it('should maintain sanity at 0 if already at minimum and negative change applied', () => {
+      storyEngine.playerData.sanity = 0;
+      storyEngine.updateSanity(-10);
+      expect(storyEngine.playerData.sanity).toBe(0);
+      expect(spyLogEvent).toHaveBeenCalledWith('Sanity changed by -10. Current sanity: 0', 'system_internal');
+    });
+
+    it('should not change sanity if change is not a number', () => {
+      storyEngine.updateSanity('invalid');
+      expect(storyEngine.playerData.sanity).toBe(50);
+      expect(spyLogEvent).not.toHaveBeenCalled();
+    });
+
+    it('should not change sanity if change is zero but still log it', () => { // Clarified test name
+      storyEngine.updateSanity(0);
+      expect(storyEngine.playerData.sanity).toBe(50);
+      expect(spyLogEvent).toHaveBeenCalledWith('Sanity changed by 0. Current sanity: 50', 'system_internal'); // Corrected expected log
+    });
+  });
+
+  describe('updateFlag(flagName, value)', () => {
+    let spyLogEvent;
+
+    beforeEach(() => {
+      storyEngine.playerData.storyFlags = {}; // Reset flags for each test
+      spyLogEvent = jest.spyOn(storyEngine, 'logEvent');
+    });
+
+    afterEach(() => {
+      spyLogEvent.mockRestore();
+    });
+
+    it('should set a new flag to true', () => {
+      storyEngine.updateFlag('testFlag1', true);
+      expect(storyEngine.playerData.storyFlags.testFlag1).toBe(true);
+      expect(spyLogEvent).toHaveBeenCalledWith("Flag 'testFlag1' set to true", 'system_internal');
+    });
+
+    it('should set a new flag to false', () => {
+      storyEngine.updateFlag('testFlag2', false);
+      expect(storyEngine.playerData.storyFlags.testFlag2).toBe(false);
+      expect(spyLogEvent).toHaveBeenCalledWith("Flag 'testFlag2' set to false", 'system_internal');
+    });
+
+    it('should update an existing flag value', () => {
+      storyEngine.playerData.storyFlags.testFlag1 = true;
+      storyEngine.updateFlag('testFlag1', false);
+      expect(storyEngine.playerData.storyFlags.testFlag1).toBe(false);
+      expect(spyLogEvent).toHaveBeenCalledWith("Flag 'testFlag1' set to false", 'system_internal');
+    });
+
+    it('should not update flags if flagName is not a string', () => {
+      const initialFlags = { ...storyEngine.playerData.storyFlags };
+      storyEngine.updateFlag(123, true);
+      expect(storyEngine.playerData.storyFlags).toEqual(initialFlags);
+      expect(spyLogEvent).not.toHaveBeenCalled();
+    });
+
+    it('should allow various types for flag values, logging them correctly', () => {
+      storyEngine.updateFlag('countFlag', 10);
+      expect(storyEngine.playerData.storyFlags.countFlag).toBe(10);
+      expect(spyLogEvent).toHaveBeenCalledWith("Flag 'countFlag' set to 10", 'system_internal');
+
+      spyLogEvent.mockClear(); // Clear mock for next assertion
+      storyEngine.updateFlag('stringFlag', "active");
+      expect(storyEngine.playerData.storyFlags.stringFlag).toBe("active");
+      expect(spyLogEvent).toHaveBeenCalledWith("Flag 'stringFlag' set to active", 'system_internal');
+    });
+  });
+
+  describe('dispatchWorldEvent(eventName)', () => {
+    let spyLogEvent;
+    let mockOnWorldEventRequired;
+
+    beforeEach(() => {
+      spyLogEvent = jest.spyOn(storyEngine, 'logEvent');
+      mockOnWorldEventRequired = jest.fn();
+      storyEngine.onWorldEventRequired = mockOnWorldEventRequired;
+    });
+
+    afterEach(() => {
+      spyLogEvent.mockRestore();
+      storyEngine.onWorldEventRequired = null; // Clean up
+    });
+
+    it('should call onWorldEventRequired callback with the event name', () => {
+      const eventName = 'test_world_event';
+      storyEngine.dispatchWorldEvent(eventName);
+      expect(mockOnWorldEventRequired).toHaveBeenCalledWith(eventName);
+    });
+
+    it('should log the world event dispatch', () => {
+      const eventName = 'another_event';
+      storyEngine.dispatchWorldEvent(eventName);
+      expect(spyLogEvent).toHaveBeenCalledWith(`World event dispatched: ${eventName}`, 'system_internal');
+    });
+
+    it('should not call callback or log if onWorldEventRequired is null', () => {
+      storyEngine.onWorldEventRequired = null;
+      storyEngine.dispatchWorldEvent('event_without_handler');
+      expect(spyLogEvent).not.toHaveBeenCalledWith(expect.stringContaining('World event dispatched:'), 'system_internal');
+    });
+
+    it('should not call callback or log if eventName is not a string', () => {
+      storyEngine.dispatchWorldEvent(123); // Invalid event name
+      expect(mockOnWorldEventRequired).not.toHaveBeenCalled();
+      expect(spyLogEvent).not.toHaveBeenCalledWith(expect.stringContaining('World event dispatched:'), 'system_internal');
+    });
+  });
 });

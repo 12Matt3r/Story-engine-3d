@@ -29,14 +29,17 @@ class DecisionSystem {
                 }
                 if (consequenceObject.effects.setNodeStates) {
                     for (const nodeName in consequenceObject.effects.setNodeStates) {
-                        // Simple assignment: nodeStates.mirror = { state: "merged" }
-                        // For "mirror.state": "merged", a helper would be needed for deep paths.
-                        // Current plan: nodeStates: { "mirror": { state: "merged" } }
                         if (typeof this.storyEngine.playerData.nodeStates[nodeName] !== 'object' || this.storyEngine.playerData.nodeStates[nodeName] === null) {
                              this.storyEngine.playerData.nodeStates[nodeName] = {};
                         }
                         Object.assign(this.storyEngine.playerData.nodeStates[nodeName], consequenceObject.effects.setNodeStates[nodeName]);
                     }
+                }
+                if (consequenceObject.effects.changeSanity !== undefined && typeof consequenceObject.effects.changeSanity === 'number') {
+                    this.storyEngine.updateSanity(consequenceObject.effects.changeSanity);
+                }
+                if (consequenceObject.effects.triggerWorldEvent && typeof consequenceObject.effects.triggerWorldEvent === 'string') {
+                    this.storyEngine.dispatchWorldEvent(consequenceObject.effects.triggerWorldEvent);
                 }
             }
             
@@ -72,7 +75,11 @@ class DecisionSystem {
             },
             shatter_reality: {
                 text: "The mirror explodes into fragments of possibility. Each shard shows a different ending to your story.",
-                effects: { setFlags: { "mirrorAltered": true, "mirrorShattered": true, "realityShaken": true }, setNodeStates: { "mirror": { state: "shattered" } } }
+                effects: {
+                    setFlags: { "mirrorAltered": true, "mirrorShattered": true, "realityShaken": true },
+                    setNodeStates: { "mirror": { state: "shattered" } },
+                    changeSanity: -15
+                }
             },
             deny_truth: {
                 text: "You walk away, but the reflection follows you now, visible in every reflective surface.",
@@ -83,7 +90,11 @@ class DecisionSystem {
             mark_existence: { text: "You carve your name into the tree's bark. The binary code flows around your inscription, incorporating it into its digital DNA." },
             hear_secrets: {
                 text: "You lean closer and listen to the tree's whispers. They speak of ancient algorithms and forgotten digital gods.",
-                effects: { setFlags: { "secretsHeard": true }, setNodeStates: { "tree": { phase: "whispering" } } }
+                effects: {
+                    setFlags: { "secretsHeard": true },
+                    setNodeStates: { "tree": { phase: "whispering" } },
+                    changeSanity: -5
+                }
             },
             consume_past: { text: "You eat a leaf. A flood of unfamiliar memories rushes through you – a life you never lived, a love you never knew." },
             create_future: { text: "You plant a seed. It sprouts instantly, growing into a sapling that mirrors your own form, made of light and code." },
@@ -110,7 +121,9 @@ class DecisionSystem {
                 text: "You grab a loose pipe and gleefully smash the clock's intricate mechanism. Gears fly, springs uncoil violently, and time itself seems to stutter and warp around you. The Narrator sighs audibly.",
                 effects: {
                     setFlags: { "clockDestroyed": true, "narratorAnnoyed": true, "chaosIncreased": true },
-                    setNodeStates: { "clock": { state: "smashed", functionality: "none" } }
+                    setNodeStates: { "clock": { state: "smashed", functionality: "none" } },
+                    changeSanity: -10, // Assuming a sanity change makes sense here
+                    triggerWorldEvent: 'event_clock_smashed'
                 }
             },
 

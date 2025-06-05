@@ -12,6 +12,89 @@ class WorldBuilder {
         this.createStoryNodes();
         this.createSurrealObjects();
         this.createArchitecturalElements();
+        this.createLoreFragments();
+        this.createLevers(); // Call new method
+    }
+
+    createLevers() {
+        const leverMaterial = new THREE.MeshStandardMaterial({
+            color: 0x777777,
+            roughness: 0.6,
+            metalness: 0.8
+        });
+
+        // Lever Alpha
+        const leverBaseGeo = new THREE.BoxGeometry(0.4, 0.3, 0.4); // Smaller base
+        const leverHandleGeo = new THREE.CylinderGeometry(0.07, 0.07, 1.0, 8); // Thinner handle
+
+        const baseMeshAlpha = new THREE.Mesh(leverBaseGeo, leverMaterial);
+        const handleMeshAlpha = new THREE.Mesh(leverHandleGeo, leverMaterial);
+
+        handleMeshAlpha.position.y = 0.5; // Position handle relative to base center
+        handleMeshAlpha.rotation.x = Math.PI / 4; // Initial 'off' angle
+
+        const leverAlpha = new THREE.Group();
+        leverAlpha.add(baseMeshAlpha);
+        leverAlpha.add(handleMeshAlpha);
+
+        leverAlpha.position.set(-2, 0.15, 2); // Example position (base center on ground)
+
+        leverAlpha.userData = {
+            type: 'lever',
+            id: 'lever_alpha',
+            triggered: false // false (off), true (on)
+        };
+        leverAlpha.castShadow = true; // Group itself doesn't cast, but children can
+        baseMeshAlpha.castShadow = true;
+        handleMeshAlpha.castShadow = true;
+
+        this.scene.add(leverAlpha);
+        this.interactableObjects.push(leverAlpha);
+    }
+
+    createLoreFragments() {
+        const loreFragmentsData = [
+            {
+                position: new THREE.Vector3(5, 1.5, 5),
+                title: "Echo of the First Thought",
+                loreText: "They say the first thought echoed through the void, and from its reverberations, reality began to crystallize..."
+            },
+            {
+                position: new THREE.Vector3(-8, 2, -12),
+                title: "The Glitch of Origin",
+                loreText: "A persistent rumor speaks of a 'glitch' in the source code of existence, a flaw that allows free will to bloom."
+            },
+            {
+                position: new THREE.Vector3(15, 1, -18),
+                title: "Whispers of the Outer Narrator",
+                loreText: "Some believe a Narrator beyond our own weaves the fate of even our storyteller. Their motives are unknown."
+            }
+        ];
+
+        const loreGeometry = new THREE.SphereGeometry(0.3, 10, 8); // Slightly more detail
+        const loreMaterial = new THREE.MeshStandardMaterial({
+            color: 0xaaaaff, // Light blue/purple
+            emissive: 0x5555dd,
+            emissiveIntensity: 0.7, // Slightly more glow
+            roughness: 0.4,
+            transparent: true,
+            opacity: 0.85
+        });
+
+        loreFragmentsData.forEach(data => {
+            const fragment = new THREE.Mesh(loreGeometry, loreMaterial.clone()); // Clone material for unique emissive changes
+            fragment.position.copy(data.position);
+            fragment.userData = {
+                type: 'lore_fragment',
+                title: data.title,
+                loreText: data.loreText,
+                triggered: false
+            };
+            fragment.castShadow = true; // Optional, small objects might not need it
+
+            this.scene.add(fragment);
+            this.interactableObjects.push(fragment);
+        });
     }
     
     createGround() {
@@ -83,7 +166,8 @@ class WorldBuilder {
         const nodeConfigs = [
             { pos: [0, 1, 0], color: 0x4a90e2, type: 'mirror', title: 'The Mirror of Reflection' },
             { pos: [-10, 1, -5], color: 0x7ed321, type: 'tree', title: 'The Whispering Tree' },
-            { pos: [8, 1, -8], color: 0xf5a623, type: 'door', title: 'The Door to Nowhere' },
+            // Modified 'door' to be the specific locked door for the puzzle
+            { pos: [8, 1.5, -8], color: 0xff0000, type: 'locked_door_main', title: 'A Heavily Bolted Door' },
             { pos: [0, 1, -15], color: 0xe94b3c, type: 'clock', title: 'The Broken Clock' },
             { pos: [15, 1, 5], color: 0x9013fe, type: 'ai', title: 'The Crying AI' },
             { pos: [-8, 1, 12], color: 0x50e3c2, type: 'void', title: 'The Void Caller' },
@@ -379,6 +463,78 @@ class WorldBuilder {
     
     getStoryNodes() {
         return this.storyNodes;
+    }
+
+    makeClockBroken() {
+        const clockNode = this.storyNodes.find(node => node.userData.storyType === 'clock');
+        if (clockNode) {
+            console.log("Making clock broken:", clockNode); // For debugging
+            if (clockNode.material) {
+                clockNode.material.color.setHex(0x333333); // Dark grey
+                if (clockNode.material.emissive) {
+                    clockNode.material.emissive.setHex(0x111111);
+                }
+                clockNode.material.metalness = 0.2;
+                clockNode.material.roughness = 0.9;
+                if (clockNode.material.needsUpdate !== undefined) clockNode.material.needsUpdate = true;
+            }
+            clockNode.rotation.z += Math.PI / 8;
+            clockNode.rotation.x -= Math.PI / 16;
+
+            if (clockNode.userData.textSprite) {
+                clockNode.userData.textSprite.visible = false;
+            }
+            // Potentially change its userData.title or add a "broken" flag
+            clockNode.userData.title = "The Smashed Clock";
+            clockNode.userData.isBroken = true;
+        } else {
+            console.warn("Could not find clock node to break.");
+        }
+    }
+
+    affectSurrealObjects(effectType) {
+        if (effectType === 'chaos_pulse') {
+            console.log("Applying chaos_pulse to surreal objects"); // For debugging
+            const surrealObjects = this.scene.children.filter(obj => obj.userData && obj.userData.rotationSpeed !== undefined);
+
+            const objectsToAffect = surrealObjects.sort(() => 0.5 - Math.random()).slice(0, Math.min(surrealObjects.length, 5)); // Affect up to 5 random objects
+
+            objectsToAffect.forEach(obj => {
+                if (!obj.material) return;
+
+                const originalColor = obj.material.color.getHex();
+                const originalEmissive = obj.material.emissive ? obj.material.emissive.getHex() : null;
+                const originalEmissiveIntensity = obj.material.emissiveIntensity;
+                const originalRotationSpeed = obj.userData.rotationSpeed;
+                const originalFloatSpeed = obj.userData.floatSpeed;
+
+                // Apply chaotic effect
+                obj.material.color.setHSL(Math.random(), 0.9, 0.6); // Bright, chaotic hue
+                if (obj.material.emissive) {
+                    obj.material.emissive.setHSL(Math.random(), 0.9, 0.5);
+                }
+                obj.material.emissiveIntensity = (originalEmissiveIntensity || 0) + 0.5;
+                obj.userData.rotationSpeed *= (Math.random() < 0.5 ? -3 : 3); // Drastically change speed/direction
+                obj.userData.floatSpeed *= 2;
+                if (obj.material.needsUpdate !== undefined) obj.material.needsUpdate = true;
+
+                // Revert after a delay
+                setTimeout(() => {
+                    if (obj.material) { // Check if obj and material still exist
+                        obj.material.color.setHex(originalColor);
+                        if (obj.material.emissive && originalEmissive !== null) {
+                             obj.material.emissive.setHex(originalEmissive);
+                        }
+                        obj.material.emissiveIntensity = originalEmissiveIntensity;
+                        if (obj.material.needsUpdate !== undefined) obj.material.needsUpdate = true;
+                    }
+                    if (obj.userData) { // Check if userData still exists
+                        obj.userData.rotationSpeed = originalRotationSpeed;
+                        obj.userData.floatSpeed = originalFloatSpeed;
+                    }
+                }, 5000 + Math.random() * 5000); // Revert after 5-10 seconds
+            });
+        }
     }
 }
 

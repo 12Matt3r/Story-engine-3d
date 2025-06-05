@@ -2,12 +2,72 @@ class UIManager {
     constructor() {
         this.isMobile = false;
         this.notifications = [];
+        this.journalEntries = []; // Store all entries for the journal
+        this.journalModal = null;
+        this.journalEntriesContainer = null;
         this.init();
     }
     
     init() {
         this.setupEventListeners();
         this.initializeMobileControls();
+        this.initializeJournal(); // Call to setup journal elements and listeners
+    }
+
+    initializeJournal() {
+        this.journalModal = document.getElementById('journal-modal');
+        this.journalEntriesContainer = document.getElementById('journal-entries');
+        const toggleJournalBtn = document.getElementById('toggle-journal-btn');
+        const closeJournalBtn = document.getElementById('close-journal-btn');
+
+        if (toggleJournalBtn && this.journalModal) {
+            toggleJournalBtn.addEventListener('click', this.toggleJournal.bind(this));
+        }
+        if (closeJournalBtn && this.journalModal) {
+            closeJournalBtn.addEventListener('click', this.toggleJournal.bind(this));
+        }
+        // Optional: Add click outside to close listener for journalModal if desired
+    }
+
+    toggleJournal() {
+        if (!this.journalModal) return;
+        const isHidden = this.journalModal.classList.toggle('hidden');
+        if (!isHidden) { // If modal is now visible
+            this.renderJournalEntries();
+        }
+    }
+
+    renderJournalEntries() {
+        if (!this.journalEntriesContainer) return;
+        this.journalEntriesContainer.innerHTML = ''; // Clear existing entries
+
+        this.journalEntries.slice().reverse().forEach(entry => { // Newest first
+            const entryDiv = document.createElement('div');
+            // Apply base log entry styling and type-specific styling
+            entryDiv.className = `journal-entry log-entry log-entry-${entry.type}`;
+
+            // Apply special styling for observer insights, consistent with addLogEntry
+            if (entry.type === 'observer_insight') {
+                entryDiv.classList.add('insight-text');
+                // Styles like fontStyle and color are best handled by CSS via .insight-text
+                // but can be added here if absolutely necessary for direct JS styling:
+                // entryDiv.style.fontStyle = 'italic';
+                // entryDiv.style.color = '#aabbff';
+            }
+
+            const metaP = document.createElement('p');
+            metaP.className = 'journal-entry-meta';
+            metaP.textContent = `Day ${entry.day} - Type: ${entry.type}`; // Simplified meta for now
+
+            const contentP = document.createElement('p');
+            contentP.className = 'journal-entry-content';
+            contentP.textContent = entry.content;
+
+            entryDiv.appendChild(metaP);
+            entryDiv.appendChild(contentP);
+            this.journalEntriesContainer.appendChild(entryDiv);
+        });
+        this.journalEntriesContainer.scrollTop = 0; // Scroll to top
     }
     
     isMobileDevice() {
@@ -113,24 +173,33 @@ class UIManager {
     }
     
     addLogEntry(logEntry) {
+        // Add to the main story log (bottom right, last 50)
         const logContent = document.getElementById('log-content');
-        if (!logContent) return;
-        
-        const entryElement = document.createElement('div');
-        entryElement.className = `log-entry ${logEntry.type}`;
-        if (logEntry.type === 'observer_insight') {
-          entryElement.classList.add('insight-text');
-          entryElement.style.fontStyle = 'italic';
-          entryElement.style.color = '#aabbff'; // Example color for insights
+        if (logContent) {
+            const entryElement = document.createElement('div');
+            entryElement.className = `log-entry ${logEntry.type}`;
+            if (logEntry.type === 'observer_insight') {
+              entryElement.classList.add('insight-text');
+              // Direct styling kept for consistency, though CSS is preferred
+              entryElement.style.fontStyle = 'italic';
+              entryElement.style.color = '#aabbff';
+            }
+            entryElement.textContent = logEntry.content;
+
+            logContent.appendChild(entryElement);
+            logContent.scrollTop = logContent.scrollHeight; // Auto-scroll
+
+            while (logContent.children.length > 50) {
+                logContent.removeChild(logContent.firstChild);
+            }
         }
-        entryElement.textContent = logEntry.content;
-        
-        logContent.appendChild(entryElement);
-        logContent.scrollTop = logContent.scrollHeight;
-        
-        // Keep only last 50 entries
-        while (logContent.children.length > 50) {
-            logContent.removeChild(logContent.firstChild);
+
+        // Add to the persistent journal entries array
+        this.journalEntries.push(logEntry);
+
+        // If journal is currently open, re-render it (or just append, but re-render is simpler for now)
+        if (this.journalModal && !this.journalModal.classList.contains('hidden')) {
+            this.renderJournalEntries();
         }
     }
     

@@ -33,6 +33,14 @@ class StoryEngine {
         this.onStoryUpdate = null;
         this.onDecisionRequired = null;
         this.onEnvironmentChange = null;
+        this.onWorldEventRequired = null; // New callback for world events
+    }
+
+    dispatchWorldEvent(eventName) {
+        if (this.onWorldEventRequired && typeof eventName === 'string') {
+            this.onWorldEventRequired(eventName);
+            this.logEvent(`World event dispatched: ${eventName}`, 'system_internal');
+        }
     }
     
     logEvent(content, type = 'event') {
@@ -104,6 +112,22 @@ class StoryEngine {
     advance() {
         if (this.canAdvance()) {
             this.triggerRandomEvent();
+        }
+    }
+
+    updateSanity(change) {
+        if (typeof change === 'number') {
+            this.playerData.sanity += change;
+            this.playerData.sanity = Math.max(0, Math.min(100, this.playerData.sanity));
+            // Optional: Log this change internally for debugging or richer story log
+            this.logEvent(`Sanity changed by ${change > 0 ? '+' : ''}${change}. Current sanity: ${this.playerData.sanity}`, 'system_internal');
+        }
+    }
+
+    updateFlag(flagName, value) {
+        if (typeof flagName === 'string') {
+            this.playerData.storyFlags[flagName] = value;
+            this.logEvent(`Flag '${flagName}' set to ${value}`, 'system_internal'); // Log flag changes
         }
     }
     

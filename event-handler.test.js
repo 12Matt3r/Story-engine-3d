@@ -456,4 +456,141 @@ describe('EventHandler', () => {
       expect(mockStoryEngineInstance.availableDecisions.length).toBe(0);
     });
   });
+
+  describe('Sanity-Based Text Effects', () => {
+    const eventType = 'testSanityEvent';
+    const eventTitle = 'Sanity Test Event';
+    const originalText = "This is a perfectly normal sentence for testing.";
+    const mockTemplate = {
+        texts: [originalText],
+        effects: ['test_effect']
+    };
+    let mockMathRandom; // Keep this to ensure restoration
+
+    beforeEach(() => {
+      mockNarrativeTemplatesGet.mockReturnValue(mockTemplate);
+      mockStoryEngineInstance.playerData.sanity = 100;
+      mockStoryEngineInstance.updateStory.mockClear();
+      // Restore Math.random before each test in this suite to ensure clean state
+      if (mockMathRandom && typeof mockMathRandom.mockRestore === 'function') {
+        mockMathRandom.mockRestore();
+      }
+      mockMathRandom = null;
+    });
+
+    afterEach(() => {
+        if(mockMathRandom && typeof mockMathRandom.mockRestore === 'function') {
+            mockMathRandom.mockRestore();
+        }
+    });
+
+    it('should apply word scramble effect at low sanity when randomEffect < 0.4', () => {
+      mockStoryEngineInstance.playerData.sanity = 20; // Low sanity
+      // First random call determines effect type, subsequent ones for word scrambling itself
+      mockMathRandom = jest.spyOn(Math, 'random')
+        .mockReturnValueOnce(0.3) // Selects scramble path
+        .mockImplementation(() => 0.1); // Subsequent calls for word selection affect many words
+
+      eventHandler.triggerEvent(eventType, eventTitle);
+
+      const MOCK_EXPECT_PREFIX = "[Your thoughts feel scrambled] ";
+      const updatedText = mockStoryEngineInstance.updateStory.mock.calls[0][0];
+      expect(updatedText.startsWith(MOCK_EXPECT_PREFIX)).toBe(true);
+      expect(updatedText.substring(MOCK_EXPECT_PREFIX.length)).not.toBe(originalText);
+    });
+
+    it('should append intrusive phrase at low sanity when 0.4 <= randomEffect < 0.7', () => {
+      mockStoryEngineInstance.playerData.sanity = 20; // Low sanity
+      // First random call for effect type, second for phrase selection
+      const unsettlingPhrases = ["...are you sure?", "...it's all unreal...", "...they're watching...", "...can't trust it..."];
+      const phraseIndex = 1; // Target unsettlingPhrases[1] ("...it's all unreal...")
+
+      mockMathRandom = jest.spyOn(Math, 'random');
+      // 1st call in triggerEvent: for text selection from array (baseTexts.length is 1, so value doesn't matter much)
+      mockMathRandom.mockReturnValueOnce(0.1);
+      // 2nd call in triggerEvent: for selecting sanity effect type
+      mockMathRandom.mockReturnValueOnce(0.5); // 0.5 is >= 0.4 and < 0.7, selects intrusive phrase
+      // 3rd call in triggerEvent: for selecting which intrusive phrase
+      mockMathRandom.mockReturnValueOnce(phraseIndex / unsettlingPhrases.length); // e.g. 1/4 = 0.25
+
+      eventHandler.triggerEvent(eventType, eventTitle);
+
+      const updatedText = mockStoryEngineInstance.updateStory.mock.calls[0][0];
+      expect(updatedText.endsWith(unsettlingPhrases[phraseIndex])).toBe(true);
+      expect(updatedText.startsWith(originalText)).toBe(true);
+    });
+
+    it('should NOT apply text distortion effects if randomEffect >= 0.7 even at low sanity', () => {
+      mockStoryEngineInstance.playerData.sanity = 20; // Low sanity
+      mockMathRandom = jest.spyOn(Math, 'random').mockReturnValue(0.8); // All random calls return 0.8
+
+      eventHandler.triggerEvent(eventType, eventTitle);
+
+      expect(mockStoryEngineInstance.updateStory).toHaveBeenCalledWith(originalText, mockTemplate.effects);
+    });
+
+    it('should NOT apply text distortion effects if sanity is high', () => {
+      mockStoryEngineInstance.playerData.sanity = 80; // High sanity
+      // Math.random could be anything here, effect should not apply
+
+      eventHandler.triggerEvent(eventType, eventTitle);
+
+      expect(mockStoryEngineInstance.updateStory).toHaveBeenCalledWith(originalText, mockTemplate.effects);
+    });
+  });
+
+  describe('Locked Door Puzzle Logic', () => {
+    const lockedDoorEventType = 'locked_door_main';
+    const lockedDoorTitle = 'A Heavily Bolted Door';
+    const mockUnlockedDoorTemplate = {
+      texts: ["The bolts retract with a clang. The way is open."],
+      decisions: [{ text: "Step through", consequence: "enter_new_area" }],
+      effects: ['door_opens_sound']
+    };
+
+    beforeEach(() => {
+      // Ensure storyFlags are initialized for each test in this suite
+      mockStoryEngineInstance.playerData.storyFlags = {};
+      mockNarrativeTemplatesGet.mockReturnValue(mockUnlockedDoorTemplate); // Default to returning the "unlocked" template
+    });
+
+    it('should show "locked" message and no decisions if lever_alpha_pulled is false', () => {
+      mockStoryEngineInstance.playerData.storyFlags.lever_alpha_pulled = false;
+      eventHandler.triggerEvent(lockedDoorEventType, lockedDoorTitle);
+
+      const expectedLockedText = "The massive door is bolted shut. Perhaps a nearby mechanism controls it.";
+      expect(mockStoryEngineInstance.updateStory).toHaveBeenCalledWith(expectedLockedText, mockUnlockedDoorTemplate.effects); // Effects might still apply if not cleared
+      // Check that decisions are empty or specific "locked" decisions
+      expect(mockStoryEngineInstance.availableDecisions).toEqual([]);
+      // onDecisionRequired might not be called if currentDecisions is empty and showDecisions checks length
+      if (mockStoryEngineInstance.availableDecisions.length === 0) {
+        expect(mockStoryEngineInstance.onDecisionRequired).not.toHaveBeenCalled();
+      } else {
+        expect(mockStoryEngineInstance.onDecisionRequired).toHaveBeenCalledWith([]);
+      }
+    });
+
+    it('should show "locked" message if storyFlags is undefined', () => {
+      delete mockStoryEngineInstance.playerData.storyFlags; // Simulate storyFlags not existing
+      eventHandler.triggerEvent(lockedDoorEventType, lockedDoorTitle);
+
+      const expectedLockedText = "The massive door is bolted shut. Perhaps a nearby mechanism controls it.";
+      expect(mockStoryEngineInstance.updateStory).toHaveBeenCalledWith(expectedLockedText, mockUnlockedDoorTemplate.effects);
+      expect(mockStoryEngineInstance.availableDecisions).toEqual([]);
+    });
+
+    it('should show "unlocked" content (from template) if lever_alpha_pulled is true', () => {
+      mockStoryEngineInstance.playerData.storyFlags.lever_alpha_pulled = true;
+      eventHandler.triggerEvent(lockedDoorEventType, lockedDoorTitle);
+
+      // Expect the text from the template (after archetype filter, which is pass-through here)
+      expect(mockStoryEngineInstance.updateStory).toHaveBeenCalledWith(mockUnlockedDoorTemplate.texts[0], mockUnlockedDoorTemplate.effects);
+      // Expect decisions from the template
+      expect(mockStoryEngineInstance.availableDecisions.length).toBe(mockUnlockedDoorTemplate.decisions.length);
+      expect(mockStoryEngineInstance.availableDecisions[0]).toEqual(
+        expect.objectContaining(mockUnlockedDoorTemplate.decisions[0])
+      );
+      expect(mockStoryEngineInstance.onDecisionRequired).toHaveBeenCalledWith(mockStoryEngineInstance.availableDecisions);
+    });
+  });
 });

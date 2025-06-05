@@ -23,16 +23,72 @@ class InteractionSystem {
             if (object.userData.type === 'storyNode' && !object.userData.triggered) {
                 this.triggerStoryNode(object);
                 return object;
+            } else if (object.userData.type === 'lore_fragment' && !object.userData.triggered) {
+                this.triggerLoreFragment(object);
+                return object;
+            } else if (object.userData.type === 'lever') {
+                this.triggerLever(object);
+                return object; // Or null if no further game-world interaction needed from this
             }
         }
         return null;
     }
+
+    triggerLever(leverNode) {
+        if (!leverNode || !leverNode.userData || !this.storyEngine) return;
+
+        leverNode.userData.triggered = !leverNode.userData.triggered; // Toggle state
+
+        // Visual feedback for the handle (assuming handle is children[1])
+        if (leverNode.children && leverNode.children.length > 1) {
+            const handle = leverNode.children[1];
+            handle.rotation.x = leverNode.userData.triggered ? -Math.PI / 4 : Math.PI / 4;
+        }
+
+        // Update global story flag
+        if (leverNode.userData.id) {
+            this.storyEngine.updateFlag(`${leverNode.userData.id}_pulled`, leverNode.userData.triggered);
+        }
+
+        // Log the interaction
+        this.storyEngine.logEvent(
+            `Lever ${leverNode.userData.id || ''} ${leverNode.userData.triggered ? 'activated' : 'deactivated'}`,
+            'interaction'
+        );
+        return leverNode;
+    }
     
+    triggerLoreFragment(fragmentNode) {
+        fragmentNode.userData.triggered = true;
+
+        // Log the lore discovery
+        if (this.storyEngine && fragmentNode.userData.title && fragmentNode.userData.loreText) {
+            this.storyEngine.logEvent(
+                `${fragmentNode.userData.title}: ${fragmentNode.userData.loreText}`,
+                'lore_discovery'
+            );
+        }
+
+        // Visual feedback: make it dimmer or change color
+        if (fragmentNode.material && fragmentNode.material.emissive) {
+            // Ensure emissiveIntensity doesn't go below a certain threshold if repeatedly applied
+            fragmentNode.material.emissiveIntensity = Math.max(0.1, fragmentNode.material.emissiveIntensity * 0.2);
+        } else if (fragmentNode.material) {
+            // Fallback if no emissive: make it more transparent or change opacity
+            if (fragmentNode.material.hasOwnProperty('opacity')) {
+                 fragmentNode.material.opacity *= 0.5;
+                 fragmentNode.material.transparent = true; // Ensure transparency is enabled
+            }
+        }
+        // Optional: Could also play a sound effect here via storyEngine or uiManager
+        return fragmentNode;
+    }
+
     triggerStoryNode(node) {
         node.userData.triggered = true;
         
         // Visual feedback
-        node.material.emissive.setHex(0x333333);
+        node.material.emissive.setHex(0x333333); // Assuming story nodes can have emissive
         
         // Trigger story event
         this.storyEngine.triggerEvent(node.userData.storyType, node.userData.title);

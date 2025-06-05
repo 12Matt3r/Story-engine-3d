@@ -1,5 +1,9 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+// import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'; // If needed later
 import { StoryEngine } from './story.js';
 import { UIManager } from './ui.js';
 import { WorldBuilder } from './world-builder.js';
@@ -23,6 +27,9 @@ class Game {
         this.controlsManager = null;
         this.clock = new THREE.Clock();
         this.isInitialized = false;
+
+        this.composer = null;
+        this.sanityShaderPass = null;
         
         this.init();
     }
@@ -38,6 +45,7 @@ class Game {
             this.setupWorld();
             this.setupInteractionSystem();
             this.setupEnvironmentalSystems();
+            this.setupPostProcessing(); // Setup post-processing
             this.setupEventListeners();
             this.setupAmbientAudio();
             this.startGameLoop();
@@ -51,6 +59,62 @@ class Game {
         }
     }
     
+    setupPostProcessing() {
+        try {
+            this.composer = new EffectComposer(this.renderer);
+            this.composer.addPass(new RenderPass(this.scene, this.camera));
+
+            const sanityEffectShader = {
+                uniforms: {
+                    'tDiffuse': { value: null },
+                    'sanityLevel': { value: 1.0 }
+                },
+                vertexShader: `
+                    varying vec2 vUv;
+                    void main() {
+                        vUv = uv;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    uniform sampler2D tDiffuse;
+                    uniform float sanityLevel;  // Range 0.0 (low sanity) to 1.0 (high sanity)
+                    varying vec2 vUv;
+
+                    void main() {
+                        vec4 color = texture2D(tDiffuse, vUv);
+
+                        float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+                        color.rgb = mix(vec3(gray), color.rgb, sanityLevel);
+
+                        float vignetteStrength = (1.0 - sanityLevel) * 0.5;
+                        float dist = distance(vUv, vec2(0.5));
+                        color.rgb *= smoothstep(0.8, 0.2 - vignetteStrength * 0.1, dist * (1.0 + vignetteStrength));
+
+                        if (sanityLevel < 0.3) {
+                            float noise = (fract(sin(dot(vUv, vec2(12.9898,78.233)*2.0) + sanityLevel) * 43758.5453) - 0.5) * 0.15 * (1.0 - sanityLevel);
+                            color.rgb += noise;
+                        }
+
+                        gl_FragColor = color;
+                    }
+                `
+            };
+
+            this.sanityShaderPass = new ShaderPass(sanityEffectShader);
+            this.composer.addPass(this.sanityShaderPass);
+
+            // If color issues arise (e.g., scene too dark/light), an OutputPass might be needed.
+            // const outputPass = new OutputPass();
+            // this.composer.addPass(outputPass);
+
+        } catch (error) {
+            console.error('Error setting up post-processing:', error);
+            this.sanityShaderPass = null; // Ensure it's null if setup fails
+            this.composer = null;
+        }
+    }
+
     initMinimalGame() {
         try {
             this.setupScene();
@@ -112,8 +176,32 @@ class Game {
         this.storyEngine.onStoryUpdate = this.handleStoryUpdate.bind(this);
         this.storyEngine.onDecisionRequired = this.handleDecisionRequired.bind(this);
         this.storyEngine.onEnvironmentChange = this.handleEnvironmentChange.bind(this);
+        this.storyEngine.onWorldEventRequired = this.handleWorldEvent.bind(this); // New callback assignment
     }
     
+    handleWorldEvent(eventName) {
+        if (!this.worldBuilder) {
+            console.warn("WorldBuilder not available to handle world event:", eventName);
+            return;
+        }
+
+        console.log(`Game handling world event: ${eventName}`); // For debugging
+
+        if (eventName === 'event_clock_smashed') {
+            if (typeof this.worldBuilder.makeClockBroken === 'function') {
+                this.worldBuilder.makeClockBroken();
+            } else {
+                console.warn("worldBuilder.makeClockBroken is not a function");
+            }
+            if (typeof this.worldBuilder.affectSurrealObjects === 'function') {
+                this.worldBuilder.affectSurrealObjects('chaos_pulse');
+            } else {
+                console.warn("worldBuilder.affectSurrealObjects is not a function");
+            }
+        }
+        // Add other world events here later
+    }
+
     setupUIManager() {
         this.uiManager = new UIManager();
     }
@@ -301,7 +389,16 @@ class Game {
         const narratorText = document.getElementById('narrator-text');
         if (narratorText) {
             narratorText.innerHTML = `<p>${update.text}</p>`;
-            if (update.effects.includes('glitch')) {
+            let applyGlitch = update.effects.includes('glitch');
+
+            // Check sanity for additional glitch chance
+            if (this.storyEngine && this.storyEngine.playerData && this.storyEngine.playerData.sanity < 30) {
+                if (Math.random() < 0.5) { // 50% chance to glitch text at low sanity
+                    applyGlitch = true;
+                }
+            }
+
+            if (applyGlitch) {
                 narratorText.classList.add('glitch');
                 setTimeout(() => narratorText.classList.remove('glitch'), 1000);
             }
@@ -349,6 +446,9 @@ class Game {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
+        if (this.composer) {
+            this.composer.setSize(window.innerWidth, window.innerHeight);
+        }
     }
     
     animate() {
@@ -380,8 +480,16 @@ class Game {
             
             this.updateDynamicGround(elapsedTime);
             this.updateSurrealObjects(deltaTime, elapsedTime);
+
+            // Update sanity shader uniform
+            if (this.sanityShaderPass && this.storyEngine && this.storyEngine.playerData) {
+                const currentSanity = this.storyEngine.playerData.sanity;
+                this.sanityShaderPass.uniforms.sanityLevel.value = Math.max(0, Math.min(100, currentSanity)) / 100.0;
+            }
             
-            if (this.renderer && this.scene && this.camera) {
+            if (this.composer) {
+                this.composer.render(deltaTime);
+            } else if (this.renderer && this.scene && this.camera) { // Fallback if composer failed
                 this.renderer.render(this.scene, this.camera);
             }
         } catch (error) {

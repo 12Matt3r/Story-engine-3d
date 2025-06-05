@@ -18,12 +18,17 @@ describe('DecisionSystem', () => {
     // Create a fresh mock StoryEngine for each test
     mockStoryEngineInstance = {
       ...baseMockStoryEngine,
-      playerData: {}, // Reset playerData
+      playerData: {
+        storyFlags: {},
+        nodeStates: {}
+      },
       logEvent: jest.fn(),
       updateStory: jest.fn(),
       triggerEnvironmentChange: jest.fn(),
-      availableDecisions: [], // Reset availableDecisions
-      isWaitingForDecision: false, // Reset isWaitingForDecision
+      updateSanity: jest.fn(),
+      dispatchWorldEvent: jest.fn(), // Added for world event dispatch
+      availableDecisions: [],
+      isWaitingForDecision: false,
     };
 
     decisionSystem = new DecisionSystem(mockStoryEngineInstance);
@@ -127,10 +132,12 @@ describe('DecisionSystem', () => {
     beforeEach(() => {
       jest.useFakeTimers();
       spyGetConsequenceText = jest.spyOn(decisionSystem, 'getConsequenceText');
-      // Initialize storyFlags and nodeStates for these tests
+      // Initialize/reset storyFlags, nodeStates and clear mocks for specific StoryEngine methods
       mockStoryEngineInstance.playerData.storyFlags = {};
       mockStoryEngineInstance.playerData.nodeStates = {};
-      // decisionSystem.processConsequence(testConsequence, testContext); // Call this within each test or describe block
+      mockStoryEngineInstance.updateSanity.mockClear();
+      mockStoryEngineInstance.dispatchWorldEvent.mockClear(); // Clear this new mock
+      // decisionSystem.processConsequence(testConsequence, testContext);
     });
 
     afterEach(() => {
@@ -177,17 +184,29 @@ describe('DecisionSystem', () => {
       });
     });
 
-    describe('Processing effects (storyFlags and nodeStates)', () => {
-      it('should correctly set storyFlags based on consequence effects', () => {
+    describe('Processing effects (storyFlags, nodeStates, sanity, and world events)', () => {
+      it('should correctly set storyFlags for "merge_reflection"', () => {
         decisionSystem.processConsequence(mergeReflectionConsequenceKey, testContext);
         expect(mockStoryEngineInstance.playerData.storyFlags).toHaveProperty('mergedWithReflection', true);
         expect(mockStoryEngineInstance.playerData.storyFlags).toHaveProperty('mirrorAltered', true);
       });
 
-      it('should correctly set nodeStates based on consequence effects', () => {
+      it('should correctly set nodeStates for "merge_reflection"', () => {
         decisionSystem.processConsequence(mergeReflectionConsequenceKey, testContext);
         expect(mockStoryEngineInstance.playerData.nodeStates).toHaveProperty('mirror');
         expect(mockStoryEngineInstance.playerData.nodeStates.mirror).toEqual({ state: "merged" });
+      });
+
+      it('should call updateSanity for "shatter_reality"', () => {
+        const shatterRealityKey = 'shatter_reality';
+        decisionSystem.processConsequence(shatterRealityKey, testContext);
+        expect(mockStoryEngineInstance.updateSanity).toHaveBeenCalledWith(-15);
+      });
+
+      it('should call dispatchWorldEvent for "clock_chaos_smash"', () => {
+        const clockSmashKey = 'clock_chaos_smash';
+        decisionSystem.processConsequence(clockSmashKey, testContext);
+        expect(mockStoryEngineInstance.dispatchWorldEvent).toHaveBeenCalledWith('event_clock_smashed');
       });
 
       it('should merge nodeStates if node already exists', () => {
@@ -196,20 +215,27 @@ describe('DecisionSystem', () => {
         expect(mockStoryEngineInstance.playerData.nodeStates.mirror).toEqual({ initialProp: "value", state: "merged" });
       });
 
-      it('should correctly set flags and nodeStates for another event (hear_secrets)', () => {
+      it('should correctly set flags, nodeStates, and call updateSanity for "hear_secrets"', () => {
         decisionSystem.processConsequence(hearSecretsConsequenceKey, testContext);
         expect(mockStoryEngineInstance.playerData.storyFlags).toHaveProperty('secretsHeard', true);
         expect(mockStoryEngineInstance.playerData.nodeStates).toHaveProperty('tree');
         expect(mockStoryEngineInstance.playerData.nodeStates.tree).toEqual({ phase: "whispering" });
+        expect(mockStoryEngineInstance.updateSanity).toHaveBeenCalledWith(-5);
+      });
+
+      it('should not call updateSanity if changeSanity effect is missing', () => {
+        const simpleConsequenceKey = 'mark_existence'; // This one only has text, no changeSanity
+        decisionSystem.processConsequence(simpleConsequenceKey, testContext);
+        expect(mockStoryEngineInstance.updateSanity).not.toHaveBeenCalled();
       });
 
       it('should not error if effects or specific effect types are missing', () => {
-        const simpleConsequenceKey = 'mark_existence'; // This one only has text
+        const simpleConsequenceKey = 'mark_existence';
         expect(() => {
           decisionSystem.processConsequence(simpleConsequenceKey, testContext);
         }).not.toThrow();
-        expect(mockStoryEngineInstance.playerData.storyFlags).toEqual({});
-        expect(mockStoryEngineInstance.playerData.nodeStates).toEqual({});
+        expect(mockStoryEngineInstance.playerData.storyFlags).toEqual({}); // Assuming no flags set by this
+        expect(mockStoryEngineInstance.playerData.nodeStates).toEqual({}); // Assuming no nodeStates set by this
       });
     });
 
@@ -234,19 +260,27 @@ describe('DecisionSystem', () => {
       });
     });
 
-    it('should return correct object for "shatter_reality" with updated effects', () => {
+    it('should return correct object for "shatter_reality" with updated effects including sanity', () => {
       const result = decisionSystem.getConsequenceText('shatter_reality');
       expect(result).toEqual({
         text: "The mirror explodes into fragments of possibility. Each shard shows a different ending to your story.",
-        effects: { setFlags: { "mirrorAltered": true, "mirrorShattered": true, "realityShaken": true }, setNodeStates: { "mirror": { state: "shattered" } } }
+        effects: {
+            setFlags: { "mirrorAltered": true, "mirrorShattered": true, "realityShaken": true },
+            setNodeStates: { "mirror": { state: "shattered" } },
+            changeSanity: -15
+        }
       });
     });
 
-    it('should return correct object for another known consequence with effects (hear_secrets)', () => {
+    it('should return correct object for "hear_secrets" with updated effects including sanity', () => {
       const result = decisionSystem.getConsequenceText('hear_secrets');
       expect(result).toEqual({
         text: "You lean closer and listen to the tree's whispers. They speak of ancient algorithms and forgotten digital gods.",
-        effects: { setFlags: { "secretsHeard": true }, setNodeStates: { "tree": { phase: "whispering" } } }
+        effects: {
+            setFlags: { "secretsHeard": true },
+            setNodeStates: { "tree": { phase: "whispering" } },
+            changeSanity: -5
+        }
       });
     });
 
@@ -267,7 +301,9 @@ describe('DecisionSystem', () => {
         text: "You grab a loose pipe and gleefully smash the clock's intricate mechanism. Gears fly, springs uncoil violently, and time itself seems to stutter and warp around you. The Narrator sighs audibly.",
         effects: {
             setFlags: { "clockDestroyed": true, "narratorAnnoyed": true, "chaosIncreased": true },
-            setNodeStates: { "clock": { state: "smashed", functionality: "none" } }
+            setNodeStates: { "clock": { state: "smashed", functionality: "none" } },
+            changeSanity: -10,
+            triggerWorldEvent: 'event_clock_smashed'
         }
       });
     });
