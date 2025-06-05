@@ -1,0 +1,166 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Story Engine - 3D Narrative Experience</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/",
+            "nipplejs": "https://esm.sh/nipplejs"
+        }
+    }
+    </script>
+</head>
+<body>
+    <div id="ui-overlay">
+        <!-- Story Interface -->
+        <div id="story-panel" class="panel">
+            <div id="narrator-text" class="narrator-box">
+                <p>Welcome to the Story Engine. You are the protagonist of an evolving narrative...</p>
+            </div>
+            <div id="decision-buttons" class="decision-container">
+                <!-- Dynamic decision buttons will appear here -->
+            </div>
+        </div>
+
+        <!-- Player Info -->
+        <div id="player-info" class="panel top-right">
+            <div class="info-item">
+                <span class="label">Player:</span>
+                <span id="player-name">Unknown</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Archetype:</span>
+                <span id="player-archetype">Undefined</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Day:</span>
+                <span id="current-day">1</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Sanity:</span>
+                <span id="sanity-level">100%</span>
+            </div>
+        </div>
+
+        <!-- Story Log -->
+        <div id="story-log" class="panel bottom-right">
+            <div class="panel-header">
+                <h3>Story Log</h3>
+                <button id="toggle-log" class="toggle-btn">−</button>
+            </div>
+            <div id="log-content" class="log-scroll">
+                <!-- Story events will be logged here -->
+            </div>
+            <div class="log-controls">
+                <button id="export-story" class="control-btn">Export Story</button>
+                <button id="toggle-autoplay" class="control-btn">Auto Mode</button>
+            </div>
+        </div>
+
+        <!-- Controls Help -->
+        <div id="controls-help" class="panel bottom-left">
+            <div class="control-hint">WASD: Move</div>
+            <div class="control-hint">Mouse: Look</div>
+            <div class="control-hint">Click: Interact</div>
+            <div class="control-hint">Space: Next</div>
+        </div>
+
+        <!-- Loading Screen -->
+        <div id="loading-screen">
+            <div class="loading-content">
+                <h1>Story Engine</h1>
+                <div class="loading-bar">
+                    <div class="loading-progress"></div>
+                </div>
+                <p>Initializing narrative reality...</p>
+            </div>
+        </div>
+
+        <!-- Character Selection -->
+        <div id="character-select" class="modal hidden">
+            <div class="modal-content">
+                <h2>Choose Your Archetype</h2>
+                <div class="archetype-grid">
+                    <div class="archetype-card" data-archetype="Silent Observer">
+                        <h3>Silent Observer</h3>
+                        <p>You watch, you listen, you rarely speak. The world reveals its secrets to those who wait.</p>
+                    </div>
+                    <div class="archetype-card" data-archetype="Agent of Chaos">
+                        <h3>Agent of Chaos</h3>
+                        <p>You disrupt, you question, you break the rules. Order is an illusion waiting to be shattered.</p>
+                    </div>
+                    <div class="archetype-card" data-archetype="Emotion Engine">
+                        <h3>Emotion Engine</h3>
+                        <p>You feel everything intensely. Your emotions reshape reality around you.</p>
+                    </div>
+                    <div class="archetype-card" data-archetype="Golden Masked Oracle">
+                        <h3>Golden Masked Oracle</h3>
+                        <p>You see beyond the veil. The future whispers to you in fragments and symbols.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Controls -->
+    <div id="mobile-controls" class="mobile-only">
+        <div id="movement-joystick"></div>
+        <div class="mobile-buttons">
+            <button id="mobile-interact" class="mobile-btn">Interact</button>
+            <button id="mobile-next" class="mobile-btn">Next</button>
+        </div>
+    </div>
+
+    <!-- Three.js Canvas -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Audio Context -->
+    <audio id="ambient-audio" loop>
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+D2u2kZBDKM1" type="audio/wav">
+    </audio>
+
+    <!-- Additional ambient sounds -->
+    <audio id="mystery-sound" loop>
+        <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=" type="audio/wav">
+    </audio>
+
+    <script src="controls.js" type="module"></script>
+    <script src="story.js" type="module"></script>
+    <script src="ui.js" type="module"></script>
+    <script src="game.js" type="module"></script>
+    
+    <script>
+        // Enhanced global error handlers to prevent unhandled rejections
+        window.addEventListener('unhandledrejection', event => {
+            console.error('Unhandled promise rejection:', event.reason);
+            console.error('Stack trace:', event.reason?.stack || 'No stack trace available');
+            // Prevent the browser's default handling
+            event.preventDefault();
+            // Don't throw to avoid cascading errors
+        });
+        
+        window.addEventListener('error', event => {
+            console.error('Unhandled error:', event.error);
+            console.error('Error details:', {
+                message: event.message,
+                filename: event.filename,
+                lineno: event.lineno,
+                colno: event.colno,
+                stack: event.error?.stack || 'No stack trace available'
+            });
+            // Prevent the browser's default handling
+            event.preventDefault();
+            // Don't throw to avoid cascading errors
+        });
+        
+        // Additional handler for module loading errors
+        window.addEventListener('rejectionhandled', event => {
+            console.warn('Promise rejection was handled after being unhandled:', event.reason);
+        });
+    </script>
+</body>
+</html>
