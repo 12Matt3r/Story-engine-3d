@@ -120,8 +120,10 @@ class StoryEngine {
             
             setTimeout(() => {
                 try {
+                if (!this.isWaitingForDecision) {
                     this.updateStory(event, ['glitch']);
                     this.logEvent(event, 'random');
+                }
                 } catch (error) {
                     console.warn('Error triggering random event:', error);
                 }

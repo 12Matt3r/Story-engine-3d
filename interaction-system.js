@@ -38,14 +38,13 @@ class InteractionSystem {
         this.storyEngine.triggerEvent(node.userData.storyType, node.userData.title);
         
         // Add glitch effect
-        const sprite = this.scene.children.find(child => 
-            child.isSprite && 
-            child.position.distanceTo(node.position) < 3
-        );
-        if (sprite) {
+        const sprite = node.userData.textSprite; // Retrieve sprite from userData
+        if (sprite && sprite.material) { // Check if sprite and material exist
             sprite.material.color.setHex(0xff0000);
             setTimeout(() => {
-                sprite.material.color.setHex(0xffffff);
+                if (sprite.material) { // Check material again in async callback
+                    sprite.material.color.setHex(0xffffff);
+                }
             }, 200);
         }
         

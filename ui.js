@@ -34,10 +34,10 @@ class UIManager {
             if (this.isMobileDevice()) {
                 import('nipplejs').then(nipplejs => {
                     try {
-                        if (nipplejs && nipplejs.default) {
+                        if (nipplejs && nipplejs.default && typeof nipplejs.default.create === 'function') {
                             this.setupMobileJoystick(nipplejs.default);
                         } else {
-                            console.warn('nipplejs loaded but missing default export');
+                            console.warn('nipplejs loaded but nipplejs.default.create is not a function');
                             this.hideMobileControls();
                         }
                     } catch (error) {

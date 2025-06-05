@@ -63,6 +63,7 @@ class Game {
             this.showLoadingScreen();
         } catch (error) {
             console.error('Even minimal game initialization failed:', error);
+            this.showErrorMessage('A critical error occurred during minimal game initialization. The game may not function correctly. Please try refreshing the page.');
         }
     }
     
@@ -186,6 +187,11 @@ class Game {
         
         window.addEventListener('mobile-interaction', () => {
             this.handleInteraction();
+        });
+
+        window.addEventListener('mobile-next', () => {
+            // Similar to space bar, advance story if possible
+            this.interactionSystem.advanceStory();
         });
     }
     

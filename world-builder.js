@@ -96,7 +96,8 @@ class WorldBuilder {
             this.interactableObjects.push(node);
             this.storyNodes.push(node);
             
-            this.addFloatingText(config.title, node.position, 0.3);
+            const sprite = this.addFloatingText(config.title, node.position, 0.3);
+            node.userData.textSprite = sprite; // Store sprite reference
         });
     }
     
