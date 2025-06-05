@@ -17,7 +17,9 @@ class StoryEngine {
                 curious: 0,
                 destructive: 0,
                 empathetic: 0
-            }
+            },
+            storyFlags: {}, // New: for boolean flags like { mirrorTouched: true }
+            nodeStates: {}  // New: for more complex states per node, e.g., { tree: { phase: 'whispering' } }
         };
         
         this.currentStoryState = 'beginning';

@@ -1,0 +1,23 @@
+{
+  "name": "interactive-narrative-engine",
+  "version": "1.0.0",
+  "description": "A web-based interactive narrative game engine.",
+  "main": "game.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "jest"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.17.1",
+    "three": "^0.160.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.0.0",
+    "@babel/preset-env": "^7.0.0",
+    "babel-jest": "^29.0.0",
+    "jest": "^29.0.0"
+  }
+}

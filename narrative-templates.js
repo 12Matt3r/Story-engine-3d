@@ -58,7 +58,12 @@ class NarrativeTemplates {
                     { text: "Stop the clock", consequence: "freeze_time" },
                     { text: "Accelerate the hands", consequence: "rush_ending" },
                     { text: "Live inside the mechanism", consequence: "join_clockwork" },
-                    { text: "Ask the clock what time it really is", consequence: "question_time" }
+                    { text: "Ask the clock what time it really is", consequence: "question_time" },
+                    {
+                        text: "Smash the clock mechanism with a nearby pipe", // Agent of Chaos specific
+                        consequence: "clock_chaos_smash",
+                        archetypeCondition: 'Agent of Chaos'
+                    }
                 ]
             },
             

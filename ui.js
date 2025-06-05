@@ -118,6 +118,11 @@ class UIManager {
         
         const entryElement = document.createElement('div');
         entryElement.className = `log-entry ${logEntry.type}`;
+        if (logEntry.type === 'observer_insight') {
+          entryElement.classList.add('insight-text');
+          entryElement.style.fontStyle = 'italic';
+          entryElement.style.color = '#aabbff'; // Example color for insights
+        }
         entryElement.textContent = logEntry.content;
         
         logContent.appendChild(entryElement);
