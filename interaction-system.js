@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import SoundManager from './sound-manager.js';
 
 class InteractionSystem {
     constructor(scene, camera, storyEngine) {
@@ -50,6 +51,8 @@ class InteractionSystem {
             this.storyEngine.updateFlag(`${leverNode.userData.id}_pulled`, leverNode.userData.triggered);
         }
 
+        SoundManager.playSound(leverNode.userData.triggered ? 'lever_on' : 'lever_off');
+
         // Log the interaction
         this.storyEngine.logEvent(
             `Lever ${leverNode.userData.id || ''} ${leverNode.userData.triggered ? 'activated' : 'deactivated'}`,
@@ -68,6 +71,7 @@ class InteractionSystem {
                 'lore_discovery'
             );
         }
+        SoundManager.playSound('lore_pickup');
 
         // Visual feedback: make it dimmer or change color
         if (fragmentNode.material && fragmentNode.material.emissive) {

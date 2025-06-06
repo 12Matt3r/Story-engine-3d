@@ -1,3 +1,5 @@
+import SoundManager from './sound-manager.js';
+
 class DecisionSystem {
     constructor(storyEngine) {
         this.storyEngine = storyEngine;
@@ -8,6 +10,7 @@ class DecisionSystem {
         
         const decision = this.storyEngine.availableDecisions[decisionIndex];
         this.storyEngine.logEvent(`Chose: ${decision.text}`, 'decision');
+        SoundManager.playSound('decision_made');
         
         this.processConsequence(decision.consequence, decision.context);
         
@@ -17,8 +20,18 @@ class DecisionSystem {
     
     processConsequence(consequence, context) {
         try {
-            const consequenceObject = this.getConsequenceText(consequence);
+            // Get a mutable copy of the consequence object to allow dynamic modifications
+            let consequenceObject = JSON.parse(JSON.stringify(this.getConsequenceText(consequence)));
             const consequenceText = consequenceObject.text;
+
+            // Dynamic effect modification for geode_touch by Emotion Engine
+            if (consequence === 'geode_touch' && this.storyEngine.playerData.archetype === 'Emotion Engine') {
+                if (!consequenceObject.effects) consequenceObject.effects = {};
+                if (!consequenceObject.effects.setNodeStates) consequenceObject.effects.setNodeStates = {};
+                if (!consequenceObject.effects.setNodeStates.geode) consequenceObject.effects.setNodeStates.geode = {};
+
+                consequenceObject.effects.setNodeStates.geode.lastTouchedEmotion = this.storyEngine.playerData.currentEmotion;
+            }
 
             // Apply state changes immediately
             if (consequenceObject.effects) {
@@ -35,9 +48,30 @@ class DecisionSystem {
                         Object.assign(this.storyEngine.playerData.nodeStates[nodeName], consequenceObject.effects.setNodeStates[nodeName]);
                     }
                 }
+            let sanityChangeAmount = 0;
+            let hasSanityChange = false;
+
                 if (consequenceObject.effects.changeSanity !== undefined && typeof consequenceObject.effects.changeSanity === 'number') {
-                    this.storyEngine.updateSanity(consequenceObject.effects.changeSanity);
+                sanityChangeAmount = consequenceObject.effects.changeSanity;
+                hasSanityChange = true;
                 }
+
+            if (this.storyEngine.playerData.archetype === 'Emotion Engine' && consequenceObject.effects.emotionEngineSanityMultiplier !== undefined && typeof consequenceObject.effects.emotionEngineSanityMultiplier === 'number') {
+                // Multiplier only applies if there was a base sanity change to begin with
+                if (hasSanityChange) {
+                    sanityChangeAmount *= consequenceObject.effects.emotionEngineSanityMultiplier;
+                }
+                // No need to set hasSanityChange = true here again, as it's already true if we are in this block.
+            }
+
+            if (hasSanityChange) {
+                this.storyEngine.updateSanity(sanityChangeAmount);
+            }
+
+            if (this.storyEngine.playerData.archetype === 'Emotion Engine' && consequenceObject.effects.setEmotion && typeof consequenceObject.effects.setEmotion === 'string') {
+                this.storyEngine.setCurrentEmotion(consequenceObject.effects.setEmotion);
+            }
+
                 if (consequenceObject.effects.triggerWorldEvent && typeof consequenceObject.effects.triggerWorldEvent === 'string') {
                     this.storyEngine.dispatchWorldEvent(consequenceObject.effects.triggerWorldEvent);
                 }
@@ -122,19 +156,39 @@ class DecisionSystem {
                 effects: {
                     setFlags: { "clockDestroyed": true, "narratorAnnoyed": true, "chaosIncreased": true },
                     setNodeStates: { "clock": { state: "smashed", functionality: "none" } },
-                    changeSanity: -10, // Assuming a sanity change makes sense here
+            changeSanity: -10,
                     triggerWorldEvent: 'event_clock_smashed'
                 }
             },
 
             // AI
             show_empathy: { text: "You comfort the AI. Its electric tears slow. 'Thank you,' it whispers, 'it is rare to find kindness in this coded world.'" },
+            comfort_the_ai: { // Example for Emotion Engine
+                text: "Your attempt to comfort the AI resonates deeply. You feel a strange empathic link, sharing its sorrow and its glimmers of hope.",
+                effects: {
+                    setFlags: { "aiComforted": true },
+                    changeSanity: 5,
+                    emotionEngineSanityMultiplier: 2.0,
+                    setEmotion: 'serene',
+                    triggerWorldEvent: 'event_emotional_surge_positive'
+                }
+            },
             swap_consciousness: { text: "A flash of light, and you find yourself looking out from the AI's interface. Your former body slumps, now inhabited by the AI." },
             request_narrative: { text: "The AI begins to tell a story, its voice weaving a complex tapestry of code and emotion, a tale of digital gods and lonely machines." },
             remove_suffering: { text: "You delete the AI's painful memories. It becomes placid, serene, but something vital seems lost." },
 
             // Void
             embrace_nothing: { text: "You step into the void. Formlessness envelops you. You are everything and nothing, a paradox of existence." },
+            embrace_nothing_partially: { // Example for Emotion Engine
+                text: "You teeter on the edge of the void, its emptiness seeping into your thoughts. A part of you is lost, another terrified.",
+                effects: {
+                    setFlags: { "voidExperienced": true },
+                    changeSanity: -10,
+                    emotionEngineSanityMultiplier: 1.5,
+                    setEmotion: 'fearful',
+                    triggerWorldEvent: 'event_emotional_surge_negative'
+                }
+            },
             harmony_chaos: { text: "You sing back to the void caller. Your voices intertwine, creating a symphony of beautiful, terrible chaos." },
             choose_story: { text: "You refuse the call, choosing your own narrative, however flawed. The void caller nods, a hint of respect in its formless face." },
             question_motivation: { text: "The void caller explains, 'All stories must end. I offer a way out of the cycle, a return to the potential from which all narratives spring.'" },

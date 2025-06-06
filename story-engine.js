@@ -18,8 +18,9 @@ class StoryEngine {
                 destructive: 0,
                 empathetic: 0
             },
-            storyFlags: {}, // New: for boolean flags like { mirrorTouched: true }
-            nodeStates: {}  // New: for more complex states per node, e.g., { tree: { phase: 'whispering' } }
+            storyFlags: {},
+            nodeStates: {},
+            currentEmotion: 'neutral', // Possible values: 'neutral', 'joyful', 'fearful', 'agitated', 'serene'
         };
         
         this.currentStoryState = 'beginning';
@@ -128,6 +129,16 @@ class StoryEngine {
         if (typeof flagName === 'string') {
             this.playerData.storyFlags[flagName] = value;
             this.logEvent(`Flag '${flagName}' set to ${value}`, 'system_internal'); // Log flag changes
+        }
+    }
+
+    setCurrentEmotion(emotion) {
+        const validEmotions = ['neutral', 'joyful', 'fearful', 'agitated', 'serene'];
+        if (validEmotions.includes(emotion)) {
+            this.playerData.currentEmotion = emotion;
+            this.logEvent(`Player emotion changed to: ${emotion}`, 'emotion_state');
+        } else {
+            console.warn(`Attempted to set invalid emotion: ${emotion}`);
         }
     }
     

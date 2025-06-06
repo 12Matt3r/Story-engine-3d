@@ -593,4 +593,181 @@ describe('EventHandler', () => {
       expect(mockStoryEngineInstance.onDecisionRequired).toHaveBeenCalledWith(mockStoryEngineInstance.availableDecisions);
     });
   });
+
+  describe('Conditional Decision Filtering (Flags and Emotion)', () => {
+    const eventType = 'conditionalTestEvent';
+    const eventTitle = 'Conditional Test';
+    const mockTemplateWithConditionalDecisions = {
+      texts: ["This event has conditional decisions."],
+      decisions: [
+        { text: "Always Visible", consequence: "always_con" },
+        { text: "Needs Flag A", consequence: "flag_a_con", conditionFlag: "flagA" },
+        { text: "Needs Archetype X", consequence: "arch_x_con", archetypeCondition: "ArchetypeX" },
+        {
+          text: "Needs Emotion Y (Archetype Z)",
+          consequence: "emo_y_con",
+          emotionCondition: { archetype: "ArchetypeZ", emotion: "emotionY" }
+        },
+        {
+          text: "Needs Flag B AND Archetype X",
+          consequence: "flag_b_arch_x_con",
+          conditionFlag: "flagB",
+          archetypeCondition: "ArchetypeX"
+        }
+      ]
+    };
+
+    beforeEach(() => {
+      // Reset flags, archetype, and emotion for each test
+      mockStoryEngineInstance.playerData.storyFlags = {};
+      mockStoryEngineInstance.playerData.archetype = 'Undefined';
+      mockStoryEngineInstance.playerData.currentEmotion = 'neutral';
+      mockNarrativeTemplatesGet.mockReturnValue(mockTemplateWithConditionalDecisions);
+    });
+
+    it('should show only non-conditional decisions if no conditions met', () => {
+      eventHandler.triggerEvent(eventType, eventTitle);
+      const decisions = mockStoryEngineInstance.availableDecisions;
+      expect(decisions.length).toBe(1);
+      expect(decisions[0].text).toBe("Always Visible");
+    });
+
+    it('should show decision if conditionFlag is met', () => {
+      mockStoryEngineInstance.playerData.storyFlags.flagA = true;
+      eventHandler.triggerEvent(eventType, eventTitle);
+      const decisions = mockStoryEngineInstance.availableDecisions;
+      expect(decisions.length).toBe(2);
+      expect(decisions.find(d => d.consequence === "flag_a_con")).toBeDefined();
+    });
+
+    it('should show decision if archetypeCondition is met', () => {
+      mockStoryEngineInstance.playerData.archetype = 'ArchetypeX';
+      eventHandler.triggerEvent(eventType, eventTitle);
+      const decisions = mockStoryEngineInstance.availableDecisions;
+      expect(decisions.length).toBe(2);
+      expect(decisions.find(d => d.consequence === "arch_x_con")).toBeDefined();
+    });
+
+    it('should show decision if emotionCondition is met', () => {
+      mockStoryEngineInstance.playerData.archetype = 'ArchetypeZ';
+      mockStoryEngineInstance.playerData.currentEmotion = 'emotionY';
+      eventHandler.triggerEvent(eventType, eventTitle);
+      const decisions = mockStoryEngineInstance.availableDecisions;
+      expect(decisions.length).toBe(2);
+      expect(decisions.find(d => d.consequence === "emo_y_con")).toBeDefined();
+    });
+
+    it('should not show emotionConditioned decision if only archetype matches but emotion does not', () => {
+      mockStoryEngineInstance.playerData.archetype = 'ArchetypeZ';
+      mockStoryEngineInstance.playerData.currentEmotion = 'neutral'; // Different emotion
+      eventHandler.triggerEvent(eventType, eventTitle);
+      const decisions = mockStoryEngineInstance.availableDecisions;
+      expect(decisions.length).toBe(1);
+      expect(decisions.find(d => d.consequence === "emo_y_con")).toBeUndefined();
+    });
+
+    it('should not show emotionConditioned decision if only emotion matches but archetype does not', () => {
+      mockStoryEngineInstance.playerData.archetype = 'ArchetypeX'; // Different archetype
+      mockStoryEngineInstance.playerData.currentEmotion = 'emotionY';
+      eventHandler.triggerEvent(eventType, eventTitle);
+      const decisions = mockStoryEngineInstance.availableDecisions;
+      expect(decisions.length).toBe(2); // "Always Visible" + "Needs Archetype X"
+      expect(decisions.find(d => d.consequence === "emo_y_con")).toBeUndefined();
+      expect(decisions.find(d => d.consequence === "arch_x_con")).toBeDefined(); // Ensure this one IS present
+    });
+
+    it('should show decision if multiple conditions (flag AND archetype) are met', () => {
+      mockStoryEngineInstance.playerData.storyFlags.flagB = true;
+      mockStoryEngineInstance.playerData.archetype = 'ArchetypeX';
+      eventHandler.triggerEvent(eventType, eventTitle);
+      const decisions = mockStoryEngineInstance.availableDecisions;
+      // Will show "Always Visible", "Needs Archetype X", and "Needs Flag B AND Archetype X"
+      expect(decisions.length).toBe(3);
+      expect(decisions.find(d => d.consequence === "flag_b_arch_x_con")).toBeDefined();
+    });
+
+    it('should not show decision if only one of multiple conditions (flag AND archetype) is met', () => {
+      mockStoryEngineInstance.playerData.storyFlags.flagB = true;
+      mockStoryEngineInstance.playerData.archetype = 'Undefined'; // Archetype X not met
+      eventHandler.triggerEvent(eventType, eventTitle);
+      const decisions = mockStoryEngineInstance.availableDecisions;
+      expect(decisions.length).toBe(1); // Only "Always Visible"
+      expect(decisions.find(d => d.consequence === "flag_b_arch_x_con")).toBeUndefined();
+    });
+  });
+
+  describe('Golden Masked Oracle Glimpse', () => {
+    let mockMathRandom;
+    const testDecisions = [
+      { text: "Path A", consequence: "conA" },
+      { text: "Path B", consequence: "conB" },
+    ];
+    const context = 'test_event_context';
+
+    beforeEach(() => {
+      mockStoryEngineInstance.playerData.archetype = 'Undefined'; // Default
+      mockStoryEngineInstance.logEvent.mockClear();
+      // Restore Math.random before each test in this suite to ensure clean state
+      if (mockMathRandom && typeof mockMathRandom.mockRestore === 'function') {
+        mockMathRandom.mockRestore();
+      }
+      mockMathRandom = null;
+    });
+
+    afterEach(() => {
+        if(mockMathRandom && typeof mockMathRandom.mockRestore === 'function') {
+            mockMathRandom.mockRestore();
+        }
+    });
+
+    it('should log a glimpse message if archetype is Golden Masked Oracle and chance is met', () => {
+      mockStoryEngineInstance.playerData.archetype = 'Golden Masked Oracle';
+      // Mock Math.random: 1st call for glimpse chance, 2nd for decision index
+      const decisionIndex = 0; // Target the first decision for the glimpse
+      mockMathRandom = jest.spyOn(Math, 'random')
+        .mockReturnValueOnce(0.1) // < GLIMPSE_CHANCE (0.25) -> glimpse happens
+        .mockReturnValueOnce(decisionIndex / testDecisions.length); // Selects testDecisions[0]
+
+      eventHandler.showDecisions(testDecisions, context);
+
+      const glimpsedDecision = testDecisions[decisionIndex];
+      const expectedMessage = `[Oracle's Glimpse]: You sense that choosing '${glimpsedDecision.text}' might lead to an outcome related to '${glimpsedDecision.consequence}'.`;
+      expect(mockStoryEngineInstance.logEvent).toHaveBeenCalledWith(expectedMessage, 'oracle_glimpse');
+    });
+
+    it('should NOT log a glimpse if chance is not met, even for Oracle', () => {
+      mockStoryEngineInstance.playerData.archetype = 'Golden Masked Oracle';
+      mockMathRandom = jest.spyOn(Math, 'random').mockReturnValueOnce(0.5); // > GLIMPSE_CHANCE
+
+      eventHandler.showDecisions(testDecisions, context);
+      expect(mockStoryEngineInstance.logEvent).not.toHaveBeenCalledWith(expect.anything(), 'oracle_glimpse');
+    });
+
+    it('should NOT log a glimpse if archetype is not Golden Masked Oracle', () => {
+      mockStoryEngineInstance.playerData.archetype = 'Silent Observer';
+      mockMathRandom = jest.spyOn(Math, 'random').mockReturnValueOnce(0.1); // Would trigger if Oracle
+
+      eventHandler.showDecisions(testDecisions, context);
+      expect(mockStoryEngineInstance.logEvent).not.toHaveBeenCalledWith(expect.anything(), 'oracle_glimpse');
+    });
+
+    it('should NOT log a glimpse if there are no decisions', () => {
+      mockStoryEngineInstance.playerData.archetype = 'Golden Masked Oracle';
+      mockMathRandom = jest.spyOn(Math, 'random').mockReturnValueOnce(0.1);
+
+      eventHandler.showDecisions([], context); // Empty decisions array
+      expect(mockStoryEngineInstance.logEvent).not.toHaveBeenCalledWith(expect.anything(), 'oracle_glimpse');
+    });
+
+    it('should still call onDecisionRequired and set properties correctly even if glimpse occurs', () => {
+      mockStoryEngineInstance.playerData.archetype = 'Golden Masked Oracle';
+      mockMathRandom = jest.spyOn(Math, 'random').mockReturnValue(0.1); // Glimpse happens
+
+      eventHandler.showDecisions(testDecisions, context);
+
+      expect(mockStoryEngineInstance.availableDecisions.length).toBe(testDecisions.length);
+      expect(mockStoryEngineInstance.isWaitingForDecision).toBe(true);
+      expect(mockStoryEngineInstance.onDecisionRequired).toHaveBeenCalledWith(mockStoryEngineInstance.availableDecisions);
+    });
+  });
 });

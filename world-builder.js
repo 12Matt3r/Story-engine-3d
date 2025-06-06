@@ -5,6 +5,7 @@ class WorldBuilder {
         this.scene = scene;
         this.interactableObjects = [];
         this.storyNodes = [];
+        this.ground = null; // To store the ground mesh/material
     }
     
     createWorld() {
@@ -159,7 +160,12 @@ class WorldBuilder {
         ground.rotation.x = -Math.PI / 2;
         ground.receiveShadow = true;
         ground.userData = { type: 'dynamicGround', material: groundMaterial };
+        this.ground = ground; // Store the ground mesh
         this.scene.add(ground);
+    }
+
+    getGroundMaterial() {
+        return this.ground ? this.ground.userData.material : null;
     }
     
     createStoryNodes() {
@@ -346,9 +352,9 @@ class WorldBuilder {
                     geometry = new THREE.IcosahedronGeometry(randomSizeFactor * 0.8, 0);
                     break;
             }
-
-            const surrealObject = new THREE.Mesh(geometry, material);
             
+            const surrealObject = new THREE.Mesh(geometry, material);
+
             surrealObject.position.set(
                 (Math.random() - 0.5) * 60, // Increased spread
                 2 + Math.random() * 8,    // Increased height variation

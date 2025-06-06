@@ -1,4 +1,5 @@
 import { NarrativeTemplates } from './narrative-templates.js';
+import SoundManager from './sound-manager.js';
 
 class EventHandler {
     constructor(storyEngine) {
@@ -7,6 +8,7 @@ class EventHandler {
     }
     
     triggerEvent(eventType, title) {
+        SoundManager.playSound('node_interact'); // Play sound on any node interaction
         const narrative = this.narrativeTemplates.get(eventType);
         if (!narrative) return;
         
@@ -25,20 +27,42 @@ class EventHandler {
             }
         }
 
-        // --- Archetype-specific decision filtering ---
+        // --- Archetype-specific and Conditional Decision Filtering ---
+        let currentDecisions = [];
         if (rawDecisions.length > 0) {
-            rawDecisions = rawDecisions.filter(decision => {
-                return !decision.archetypeCondition || decision.archetypeCondition === this.storyEngine.playerData.archetype;
+            currentDecisions = rawDecisions.filter(decision => {
+                // Archetype condition
+                if (decision.archetypeCondition && decision.archetypeCondition !== this.storyEngine.playerData.archetype) {
+                    return false;
+                }
+                // Flag condition
+                if (decision.conditionFlag && (!this.storyEngine.playerData.storyFlags || !this.storyEngine.playerData.storyFlags[decision.conditionFlag])) {
+                    return false;
+                }
+                // Emotion condition
+                if (decision.emotionCondition) {
+                    if (decision.emotionCondition.archetype !== this.storyEngine.playerData.archetype ||
+                        decision.emotionCondition.emotion !== this.storyEngine.playerData.currentEmotion) {
+                        return false;
+                    }
+                }
+                return true;
             });
         }
-        let currentDecisions = rawDecisions; // currentDecisions will now be the filtered list or empty
+        // --- End Decision Filtering ---
 
-        // --- Conditional Logic Start (for story flags, can modify currentDecisions further) ---
+
+        // --- Story Flag-Based Event Modification (Example for 'tree' and 'mirrorAltered' flag) ---
+        // This specific flag-based modification adds a decision, so it runs after initial filtering.
         if (eventType === 'tree' && this.storyEngine.playerData.storyFlags && this.storyEngine.playerData.storyFlags.mirrorAltered === true) {
             chosenText = "The tree shimmers with a faint, reflected light. " + chosenText;
-            currentDecisions.push({ text: "Touch the shimmering bark", consequence: "tree_mirror_touch" }); // Add to already filtered list
+            // Ensure not to duplicate if already added or if it's a core part of a filtered list above
+            const newTreeDecision = { text: "Touch the shimmering bark", consequence: "tree_mirror_touch" };
+            if (!currentDecisions.find(d => d.consequence === "tree_mirror_touch")) {
+                 currentDecisions.push(newTreeDecision);
+            }
         }
-        // --- Conditional Logic End ---
+        // --- End Story Flag-Based Event Modification ---
 
         let textToDisplay = this.narrativeTemplates.applyArchetypeFilter(
             chosenText, eventType, this.storyEngine.playerData.archetype
@@ -108,6 +132,19 @@ class EventHandler {
     }
     
     showDecisions(decisions, context) {
+        // --- Golden Masked Oracle Glimpse Start ---
+        if (this.storyEngine.playerData.archetype === 'Golden Masked Oracle' && decisions && decisions.length > 0) {
+            const GLIMPSE_CHANCE = 0.25; // 25% chance
+            if (Math.random() < GLIMPSE_CHANCE) {
+                const randomDecisionIndex = Math.floor(Math.random() * decisions.length);
+                const glimpsedDecision = decisions[randomDecisionIndex];
+
+                const glimpseMessage = `[Oracle's Glimpse]: You sense that choosing '${glimpsedDecision.text}' might lead to an outcome related to '${glimpsedDecision.consequence}'.`;
+                this.storyEngine.logEvent(glimpseMessage, 'oracle_glimpse');
+            }
+        }
+        // --- Golden Masked Oracle Glimpse End ---
+
         this.storyEngine.availableDecisions = decisions.map(decision => ({
             ...decision,
             context: context

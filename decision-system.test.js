@@ -20,13 +20,15 @@ describe('DecisionSystem', () => {
       ...baseMockStoryEngine,
       playerData: {
         storyFlags: {},
-        nodeStates: {}
+        nodeStates: {},
+        archetype: 'Undefined' // Default archetype for most tests
       },
       logEvent: jest.fn(),
       updateStory: jest.fn(),
       triggerEnvironmentChange: jest.fn(),
       updateSanity: jest.fn(),
-      dispatchWorldEvent: jest.fn(), // Added for world event dispatch
+      dispatchWorldEvent: jest.fn(),
+      setCurrentEmotion: jest.fn(), // Added for Emotion Engine
       availableDecisions: [],
       isWaitingForDecision: false,
     };
@@ -135,8 +137,10 @@ describe('DecisionSystem', () => {
       // Initialize/reset storyFlags, nodeStates and clear mocks for specific StoryEngine methods
       mockStoryEngineInstance.playerData.storyFlags = {};
       mockStoryEngineInstance.playerData.nodeStates = {};
+      mockStoryEngineInstance.playerData.archetype = 'Undefined'; // Reset archetype
       mockStoryEngineInstance.updateSanity.mockClear();
-      mockStoryEngineInstance.dispatchWorldEvent.mockClear(); // Clear this new mock
+      mockStoryEngineInstance.dispatchWorldEvent.mockClear();
+      mockStoryEngineInstance.setCurrentEmotion.mockClear(); // Clear this new mock
       // decisionSystem.processConsequence(testConsequence, testContext);
     });
 
@@ -197,10 +201,11 @@ describe('DecisionSystem', () => {
         expect(mockStoryEngineInstance.playerData.nodeStates.mirror).toEqual({ state: "merged" });
       });
 
-      it('should call updateSanity for "shatter_reality"', () => {
+      it('should call updateSanity for "shatter_reality" (non-Emotion Engine)', () => {
+        mockStoryEngineInstance.playerData.archetype = 'Silent Observer'; // Not Emotion Engine
         const shatterRealityKey = 'shatter_reality';
         decisionSystem.processConsequence(shatterRealityKey, testContext);
-        expect(mockStoryEngineInstance.updateSanity).toHaveBeenCalledWith(-15);
+        expect(mockStoryEngineInstance.updateSanity).toHaveBeenCalledWith(-15); // Base value
       });
 
       it('should call dispatchWorldEvent for "clock_chaos_smash"', () => {
@@ -223,7 +228,7 @@ describe('DecisionSystem', () => {
         expect(mockStoryEngineInstance.updateSanity).toHaveBeenCalledWith(-5);
       });
 
-      it('should not call updateSanity if changeSanity effect is missing', () => {
+      it('should not call updateSanity if changeSanity effect is missing from the consequence definition', () => {
         const simpleConsequenceKey = 'mark_existence'; // This one only has text, no changeSanity
         decisionSystem.processConsequence(simpleConsequenceKey, testContext);
         expect(mockStoryEngineInstance.updateSanity).not.toHaveBeenCalled();
@@ -245,6 +250,61 @@ describe('DecisionSystem', () => {
 
       expect(() => jest.runAllTimers()).not.toThrow();
       expect(mockStoryEngineInstance.triggerEnvironmentChange).toHaveBeenCalledWith("another_consequence");
+    });
+
+    describe('Emotion Engine Specific Effects', () => {
+        const comfortAIKey = 'comfort_the_ai'; // Has multiplier 2.0, base sanity 5, setEmotion 'serene'
+        const embraceVoidKey = 'embrace_nothing_partially'; // Has multiplier 1.5, base sanity -10, setEmotion 'fearful'
+
+        beforeEach(() => {
+            mockStoryEngineInstance.playerData.archetype = 'Emotion Engine';
+        });
+
+        it('should apply sanity multiplier for Emotion Engine (positive base)', () => {
+            decisionSystem.processConsequence(comfortAIKey, testContext);
+            expect(mockStoryEngineInstance.updateSanity).toHaveBeenCalledWith(5 * 2.0);
+        });
+
+        it('should apply sanity multiplier for Emotion Engine (negative base)', () => {
+            decisionSystem.processConsequence(embraceVoidKey, testContext);
+            expect(mockStoryEngineInstance.updateSanity).toHaveBeenCalledWith(-10 * 1.5);
+        });
+
+        it('should set emotion for Emotion Engine if effect exists', () => {
+            decisionSystem.processConsequence(comfortAIKey, testContext);
+            expect(mockStoryEngineInstance.setCurrentEmotion).toHaveBeenCalledWith('serene');
+
+            mockStoryEngineInstance.setCurrentEmotion.mockClear();
+            decisionSystem.processConsequence(embraceVoidKey, testContext);
+            expect(mockStoryEngineInstance.setCurrentEmotion).toHaveBeenCalledWith('fearful');
+        });
+
+        it('should NOT apply sanity multiplier if not Emotion Engine', () => {
+            mockStoryEngineInstance.playerData.archetype = 'Silent Observer';
+            decisionSystem.processConsequence(comfortAIKey, testContext);
+            expect(mockStoryEngineInstance.updateSanity).toHaveBeenCalledWith(5); // Base sanity change
+        });
+
+        it('should NOT set emotion if not Emotion Engine', () => {
+            mockStoryEngineInstance.playerData.archetype = 'Silent Observer';
+            decisionSystem.processConsequence(comfortAIKey, testContext);
+            expect(mockStoryEngineInstance.setCurrentEmotion).not.toHaveBeenCalled();
+        });
+
+        it('should not apply multiplier if base changeSanity is missing', () => {
+            // Example: merge_reflection has no base changeSanity but let's imagine it had a multiplier
+             const mergeReflectionWithMultiplier = {
+                ...decisionSystem.getConsequenceText(mergeReflectionConsequenceKey),
+                effects: {
+                    ...(decisionSystem.getConsequenceText(mergeReflectionConsequenceKey).effects || {}),
+                    emotionEngineSanityMultiplier: 2.0 // Add multiplier
+                }
+            };
+            spyGetConsequenceText.mockReturnValue(mergeReflectionWithMultiplier); // Mock getConsequenceText for this test
+
+            decisionSystem.processConsequence(mergeReflectionConsequenceKey, testContext);
+            expect(mockStoryEngineInstance.updateSanity).not.toHaveBeenCalled(); // No base sanity to multiply
+        });
     });
   });
 
@@ -304,6 +364,34 @@ describe('DecisionSystem', () => {
             setNodeStates: { "clock": { state: "smashed", functionality: "none" } },
             changeSanity: -10,
             triggerWorldEvent: 'event_clock_smashed'
+        }
+      });
+    });
+
+    it('should return correct object for "comfort_the_ai"', () => {
+      const result = decisionSystem.getConsequenceText('comfort_the_ai');
+      expect(result).toEqual({
+        text: "Your attempt to comfort the AI resonates deeply. You feel a strange empathic link, sharing its sorrow and its glimmers of hope.",
+        effects: {
+            setFlags: { "aiComforted": true },
+            changeSanity: 5,
+            emotionEngineSanityMultiplier: 2.0,
+            setEmotion: 'serene',
+            triggerWorldEvent: 'event_emotional_surge_positive'
+        }
+      });
+    });
+
+    it('should return correct object for "embrace_nothing_partially"', () => {
+      const result = decisionSystem.getConsequenceText('embrace_nothing_partially');
+      expect(result).toEqual({
+        text: "You teeter on the edge of the void, its emptiness seeping into your thoughts. A part of you is lost, another terrified.",
+        effects: {
+            setFlags: { "voidExperienced": true },
+            changeSanity: -10,
+            emotionEngineSanityMultiplier: 1.5,
+            setEmotion: 'fearful',
+            triggerWorldEvent: 'event_emotional_surge_negative'
         }
       });
     });

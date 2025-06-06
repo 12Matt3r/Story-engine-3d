@@ -79,7 +79,8 @@ describe('StoryEngine', () => {
           empathetic: 0
         },
         storyFlags: {},
-        nodeStates: {}
+        nodeStates: {},
+        currentEmotion: 'neutral'
       });
     });
 
@@ -439,6 +440,54 @@ describe('StoryEngine', () => {
       storyEngine.updateFlag('stringFlag', "active");
       expect(storyEngine.playerData.storyFlags.stringFlag).toBe("active");
       expect(spyLogEvent).toHaveBeenCalledWith("Flag 'stringFlag' set to active", 'system_internal');
+    });
+  });
+
+  describe('setCurrentEmotion(emotion)', () => {
+    let spyLogEvent;
+    const validEmotions = ['neutral', 'joyful', 'fearful', 'agitated', 'serene'];
+
+    beforeEach(() => {
+      spyLogEvent = jest.spyOn(storyEngine, 'logEvent');
+      storyEngine.playerData.currentEmotion = 'neutral'; // Reset for each test
+    });
+
+    afterEach(() => {
+      spyLogEvent.mockRestore();
+    });
+
+    validEmotions.forEach(emotion => {
+      it(`should set currentEmotion to "${emotion}" and log event`, () => {
+        storyEngine.setCurrentEmotion(emotion);
+        expect(storyEngine.playerData.currentEmotion).toBe(emotion);
+        expect(spyLogEvent).toHaveBeenCalledWith(`Player emotion changed to: ${emotion}`, 'emotion_state');
+      });
+    });
+
+    it('should not change emotion and warn for an invalid emotion string', () => {
+      const originalEmotion = storyEngine.playerData.currentEmotion;
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      storyEngine.setCurrentEmotion('enraged'); // Invalid emotion
+
+      expect(storyEngine.playerData.currentEmotion).toBe(originalEmotion);
+      expect(spyLogEvent).not.toHaveBeenCalled();
+      expect(consoleWarnSpy).toHaveBeenCalledWith('Attempted to set invalid emotion: enraged');
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    it('should not change emotion for a non-string input', () => {
+      const originalEmotion = storyEngine.playerData.currentEmotion;
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      storyEngine.setCurrentEmotion(123);
+
+      expect(storyEngine.playerData.currentEmotion).toBe(originalEmotion);
+      expect(spyLogEvent).not.toHaveBeenCalled();
+      expect(consoleWarnSpy).toHaveBeenCalledWith('Attempted to set invalid emotion: 123');
+
+      consoleWarnSpy.mockRestore();
     });
   });
 

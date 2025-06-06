@@ -34,6 +34,28 @@ describe('NarrativeTemplates', () => {
       const nonExistentTemplate = templates.get('nonExistentTemplate123');
       expect(nonExistentTemplate).toBeUndefined();
     });
+
+    it('should retrieve the "geode" template with texts and decisions arrays', () => {
+      const geodeTemplate = templates.get('geode');
+      expect(geodeTemplate).toBeDefined();
+      expect(geodeTemplate).toHaveProperty('texts');
+      expect(Array.isArray(geodeTemplate.texts)).toBe(true);
+      expect(geodeTemplate.texts.length).toBeGreaterThan(0);
+      expect(geodeTemplate).toHaveProperty('decisions');
+      expect(Array.isArray(geodeTemplate.decisions)).toBe(true);
+      expect(geodeTemplate.decisions.length).toBeGreaterThan(0);
+    });
+
+    it('should retrieve the "terminal" template with texts and decisions arrays', () => {
+      const terminalTemplate = templates.get('terminal');
+      expect(terminalTemplate).toBeDefined();
+      expect(terminalTemplate).toHaveProperty('texts');
+      expect(Array.isArray(terminalTemplate.texts)).toBe(true);
+      expect(terminalTemplate.texts.length).toBeGreaterThan(0);
+      expect(terminalTemplate).toHaveProperty('decisions');
+      expect(Array.isArray(terminalTemplate.decisions)).toBe(true);
+      expect(terminalTemplate.decisions.length).toBeGreaterThan(0);
+    });
   });
 
   describe('applyArchetypeFilter(text, eventType, archetype)', () => {

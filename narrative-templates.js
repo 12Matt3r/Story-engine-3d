@@ -135,6 +135,33 @@ class NarrativeTemplates {
                     { text: "Rewrite the script", consequence: "edit_reality" },
                     { text: "Exit through the wings", consequence: "break_fourth_wall" }
                 ]
+            },
+
+            geode: {
+                texts: [
+                    "A massive geode, crystals pulsing faintly within. It hums with a subtle energy that resonates deep in your bones.",
+                    "The geode's light shifts in hue, almost like it's breathing. You feel an inexplicable pull towards it.",
+                    "Strange symbols, almost like circuits, are etched into the geode's outer shell. They seem to react to your presence."
+                ],
+                decisions: [
+                    { text: "Listen closely to the geode", consequence: "geode_listen" },
+                    { text: "Touch the surface of the geode", consequence: "geode_touch" },
+                    { text: "Attempt to attune to its energy (Oracle only)", consequence: "geode_attune", archetypeCondition: 'Golden Masked Oracle' }
+                ]
+            },
+
+            terminal: {
+                texts: [
+                    "An ancient terminal flickers to life as you approach. A single cursor blinks on its dusty screen: >",
+                    "The terminal is surprisingly functional. It awaits a command, its fans whirring softly in the silence.",
+                    "Faint data ghosts across the screen, too fast to read, hinting at vast forgotten networks."
+                ],
+                decisions: [
+                    { text: "Type: HELP", consequence: "terminal_help" },
+                    { text: "Type: STATUS REPORT", consequence: "terminal_status" },
+                    { text: "Type: QUERY CONNECTION (if geode attuned)", consequence: "terminal_query_geode", conditionFlag: "geodeAttuned" },
+                    { text: "Hit it with frustration (Emotion Engine - Agitated only)", consequence: "terminal_smash_agitated", emotionCondition: { emotion: "agitated", archetype: "Emotion Engine" } }
+                ]
             }
         };
     }

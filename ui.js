@@ -49,10 +49,13 @@ class UIManager {
             // Apply special styling for observer insights, consistent with addLogEntry
             if (entry.type === 'observer_insight') {
                 entryDiv.classList.add('insight-text');
-                // Styles like fontStyle and color are best handled by CSS via .insight-text
-                // but can be added here if absolutely necessary for direct JS styling:
-                // entryDiv.style.fontStyle = 'italic';
+                // entryDiv.style.fontStyle = 'italic'; // Prefer CSS for these
                 // entryDiv.style.color = '#aabbff';
+            } else if (entry.type === 'oracle_glimpse') {
+                entryDiv.classList.add('glimpse-text');
+                // entryDiv.style.color = '#ffd700';
+                // entryDiv.style.borderLeft = '3px solid #ffd700';
+                // entryDiv.style.paddingLeft = '5px';
             }
 
             const metaP = document.createElement('p');
@@ -183,6 +186,11 @@ class UIManager {
               // Direct styling kept for consistency, though CSS is preferred
               entryElement.style.fontStyle = 'italic';
               entryElement.style.color = '#aabbff';
+            } else if (logEntry.type === 'oracle_glimpse') {
+              entryElement.classList.add('glimpse-text');
+              entryElement.style.color = '#ffd700'; // Gold color
+              entryElement.style.borderLeft = '3px solid #ffd700';
+              entryElement.style.paddingLeft = '5px';
             }
             entryElement.textContent = logEntry.content;
 

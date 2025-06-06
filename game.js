@@ -4,6 +4,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 // import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'; // If needed later
+import SoundManager from './sound-manager.js'; // Import SoundManager
 import { StoryEngine } from './story.js';
 import { UIManager } from './ui.js';
 import { WorldBuilder } from './world-builder.js';
@@ -30,6 +31,8 @@ class Game {
 
         this.composer = null;
         this.sanityShaderPass = null;
+        this.emotionalSurgeTimeout = null; // For managing surge resets
+        this.lowSanitySoundPlayed = 0; // For throttling low sanity sound
         
         this.init();
     }
@@ -197,6 +200,32 @@ class Game {
                 this.worldBuilder.affectSurrealObjects('chaos_pulse');
             } else {
                 console.warn("worldBuilder.affectSurrealObjects is not a function");
+            }
+            SoundManager.playSound('clock_smashed');
+        } else if (eventName === 'event_emotional_surge_positive' || eventName === 'event_emotional_surge_negative') {
+            const groundMat = this.worldBuilder ? this.worldBuilder.getGroundMaterial() : null;
+            if (groundMat && groundMat.uniforms.storyIntensity) {
+                const isPositive = eventName === 'event_emotional_surge_positive';
+                const surgeIntensity = isPositive ? 0.95 : 0.05;
+                const message = isPositive ? "The world resonates with a positive emotional surge!" : "A wave of negative emotion washes over the world.";
+
+                this.storyEngine.logEvent(message, "world_effect");
+                // Temporarily override the intensity for the surge
+                // The animate loop will start lerping from this new value back to the emotion-driven target
+                // after the timeout clears, or naturally over time.
+                // To make the effect more pronounced and then smoothly return, we set it directly.
+                groundMat.uniforms.storyIntensity.value = surgeIntensity;
+
+                if (this.emotionalSurgeTimeout) clearTimeout(this.emotionalSurgeTimeout);
+
+                this.emotionalSurgeTimeout = setTimeout(() => {
+                    // When the surge peak duration is over, we don't need to force a value here.
+                    // The animate loop's continuous lerp towards the emotion-driven target will take over.
+                    // If we wanted a specific "neutral" point to return to before emotion takes over,
+                    // we could set groundMat.uniforms.storyIntensity.value to that here.
+                    // For now, let animate() handle the smooth transition back.
+                    this.emotionalSurgeTimeout = null;
+                }, 1500); // Duration of the pulse's peak intensity
             }
         }
         // Add other world events here later
@@ -482,9 +511,37 @@ class Game {
             this.updateSurrealObjects(deltaTime, elapsedTime);
 
             // Update sanity shader uniform
+            let currentSanityNormalized = 1.0;
             if (this.sanityShaderPass && this.storyEngine && this.storyEngine.playerData) {
                 const currentSanity = this.storyEngine.playerData.sanity;
-                this.sanityShaderPass.uniforms.sanityLevel.value = Math.max(0, Math.min(100, currentSanity)) / 100.0;
+                currentSanityNormalized = Math.max(0, Math.min(100, currentSanity)) / 100.0;
+                this.sanityShaderPass.uniforms.sanityLevel.value = currentSanityNormalized;
+            }
+
+            // Low sanity sound pulse logic
+            if (currentSanityNormalized < 0.25) {
+                if (!this.lowSanitySoundPlayed || Date.now() - this.lowSanitySoundPlayed > 5000) {
+                    SoundManager.playSound('low_sanity_pulse');
+                    this.lowSanitySoundPlayed = Date.now();
+                }
+            } else {
+                this.lowSanitySoundPlayed = 0; // Reset if sanity goes up
+            }
+
+            // Update ground shader storyIntensity based on emotion
+            const groundMat = this.worldBuilder ? this.worldBuilder.getGroundMaterial() : null;
+            if (groundMat && groundMat.uniforms.storyIntensity && this.storyEngine && this.storyEngine.playerData) {
+                if (!this.emotionalSurgeState || !this.emotionalSurgeState.active) { // Only apply if no active surge
+                    const emotion = this.storyEngine.playerData.currentEmotion;
+                    let targetIntensity = 0.5; // Default neutral intensity
+                    if (emotion === 'joyful' || emotion === 'serene') {
+                        targetIntensity = 0.8;
+                    } else if (emotion === 'fearful' || emotion === 'agitated') {
+                        targetIntensity = 0.2;
+                    }
+                    // Smoothly interpolate towards the target intensity
+                    groundMat.uniforms.storyIntensity.value += (targetIntensity - groundMat.uniforms.storyIntensity.value) * 0.05;
+                }
             }
             
             if (this.composer) {
