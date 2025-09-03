@@ -75,12 +75,11 @@ class Game {
             this.setupScene();
             this.setupCamera();
             this.setupRenderer();
-            this.setupStoryManager();
             this.setupUIManager();
+            this.setupStoryManager();
             this.setupWorld();
             this.setupSystems();
             this.setupEventListeners();
-            this.setupAmbientAudio();
             this.startGameLoop();
             this.showLoadingScreen();
             this.isInitialized = true;
@@ -151,7 +150,7 @@ class Game {
     }
     
     setupUIManager() {
-        this.uiManager = new UIManager();
+        this.uiManager = new UIManager(GAME_CONFIG);
     }
     
     setupWorld() {
@@ -199,75 +198,21 @@ class Game {
         });
     }
     
-    setupAmbientAudio() {
-        try {
-            const ambientAudio = document.getElementById('ambient-audio');
-            const mysterySound = document.getElementById('mystery-sound');
-            
-            if (ambientAudio) {
-                ambientAudio.volume = GAME_CONFIG.AUDIO.AMBIENT_VOLUME;
-                const playPromise = ambientAudio.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(error => {
-                        console.warn('Failed to play ambient audio:', error);
-                    });
-                }
-            }
-            
-            if (mysterySound) {
-                mysterySound.volume = GAME_CONFIG.AUDIO.MYSTERY_VOLUME;
-                const playPromise = mysterySound.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(error => {
-                        console.warn('Failed to play mystery sound:', error);
-                    });
-                }
-            }
-        } catch (error) {
-            console.warn('Audio initialization failed:', error);
-        }
-    }
-    
     startGameLoop() {
         this.animate();
     }
     
     showLoadingScreen() {
-        setTimeout(() => {
-            try {
-                document.getElementById('loading-screen').style.opacity = '0';
-                setTimeout(() => {
-                    try {
-                        const loadingScreen = document.getElementById('loading-screen');
-                        if (loadingScreen) {
-                            loadingScreen.style.display = 'none';
-                        }
-                        this.showCharacterSelect();
-                    } catch (error) {
-                        console.warn('Error hiding loading screen:', error);
-                    }
-                }, GAME_CONFIG.TIMERS.LOADING_SCREEN_HIDDEN);
-            } catch (error) {
-                console.warn('Error transitioning loading screen:', error);
-            }
-        }, GAME_CONFIG.TIMERS.LOADING_SCREEN_FADEOUT);
+        this.uiManager.showLoadingScreen(GAME_CONFIG.TIMERS.LOADING_SCREEN_FADEOUT, () => {
+            this.showCharacterSelect();
+        });
     }
     
     showCharacterSelect() {
-        const modal = document.getElementById('character-select');
-        if (modal) {
-            modal.classList.remove('hidden');
-            
-            const cards = modal.querySelectorAll('.archetype-card');
-            cards.forEach(card => {
-                card.addEventListener('click', () => {
-                    const archetype = card.dataset.archetype;
-                    this.storyManager.setPlayerArchetype(archetype);
-                    modal.classList.add('hidden');
-                    this.storyManager.beginStory();
-                });
-            });
-        }
+        this.uiManager.showCharacterSelection((archetype) => {
+            this.storyManager.setPlayerArchetype(archetype);
+            this.storyManager.beginStory();
+        });
     }
     
     handleInteraction() {
@@ -303,32 +248,13 @@ class Game {
     }
     
     handleStoryUpdate(update) {
-        const narratorText = document.getElementById('narrator-text');
-        if (narratorText) {
-            narratorText.innerHTML = `<p>${update.text}</p>`;
-            if (update.effects.includes('glitch')) {
-                narratorText.classList.add('glitch');
-                setTimeout(() => narratorText.classList.remove('glitch'), GAME_CONFIG.TIMERS.GLITCH_EFFECT);
-            }
-        }
-        
-        this.updatePlayerInfo();
+        this.uiManager.updateNarratorText(update);
+        this.uiManager.updatePlayerInfo(this.storyManager.playerData);
     }
     
     handleDecisionRequired(decisions) {
-        const container = document.getElementById('decision-buttons');
-        if (!container) return;
-        
-        container.innerHTML = '';
-        decisions.forEach((decision, index) => {
-            const button = document.createElement('button');
-            button.className = 'decision-btn';
-            button.textContent = decision.text;
-            button.addEventListener('click', () => {
-                this.storyManager.makeDecision(index);
-                container.innerHTML = '';
-            });
-            container.appendChild(button);
+        this.uiManager.showDecisionButtons(decisions, (index) => {
+            this.storyManager.makeDecision(index);
         });
     }
     
@@ -336,20 +262,6 @@ class Game {
         if (this.environmentalEffects) {
             this.environmentalEffects.updateStoryWeather(change.consequence);
         }
-    }
-    
-    updatePlayerInfo() {
-        const elements = {
-            'player-name': this.storyManager.playerData.name,
-            'player-archetype': this.storyManager.playerData.archetype,
-            'current-day': this.storyManager.playerData.day,
-            'sanity-level': `${this.storyManager.playerData.sanity}%`
-        };
-        
-        Object.entries(elements).forEach(([id, value]) => {
-            const element = document.getElementById(id);
-            if (element) element.textContent = value;
-        });
     }
     
     onWindowResize() {
@@ -402,21 +314,7 @@ class Game {
     }
     
     showErrorMessage(message) {
-        const errorDiv = document.createElement('div');
-        errorDiv.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(255, 0, 0, 0.8);
-            color: white;
-            padding: 20px;
-            border-radius: 5px;
-            z-index: 10000;
-            font-family: 'Courier New', monospace;
-        `;
-        errorDiv.textContent = message;
-        document.body.appendChild(errorDiv);
+        this.uiManager.showErrorMessage(message);
     }
 }
 
