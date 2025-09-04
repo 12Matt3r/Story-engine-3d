@@ -1,13 +1,111 @@
 class UIManager {
-    constructor() {
+    constructor(config) {
+        this.config = config;
         this.isMobile = false;
         this.notifications = [];
+        this.elements = {
+            loadingScreen: document.getElementById('loading-screen'),
+            characterSelect: document.getElementById('character-select'),
+            narratorText: document.getElementById('narrator-text'),
+            decisionButtons: document.getElementById('decision-buttons'),
+            playerInfo: {
+                name: document.getElementById('player-name'),
+                archetype: document.getElementById('player-archetype'),
+                day: document.getElementById('current-day'),
+                sanity: document.getElementById('sanity-level'),
+            },
+        };
         this.init();
     }
     
     init() {
         this.setupEventListeners();
         this.initializeMobileControls();
+    }
+
+    showLoadingScreen(duration, onComplete) {
+        if (!this.elements.loadingScreen) return;
+        setTimeout(() => {
+            try {
+                this.elements.loadingScreen.style.opacity = '0';
+                setTimeout(() => {
+                    try {
+                        this.elements.loadingScreen.style.display = 'none';
+                        if(onComplete) onComplete();
+                    } catch (error) {
+                        console.warn('Error hiding loading screen:', error);
+                    }
+                }, this.config.TIMERS.LOADING_SCREEN_HIDDEN);
+            } catch (error) {
+                console.warn('Error transitioning loading screen:', error);
+            }
+        }, duration);
+    }
+
+    showCharacterSelection(onSelectArchetype) {
+        if (!this.elements.characterSelect) return;
+
+        this.elements.characterSelect.classList.remove('hidden');
+
+        const cards = this.elements.characterSelect.querySelectorAll('.archetype-card');
+        cards.forEach(card => {
+            card.addEventListener('click', () => {
+                const archetype = card.dataset.archetype;
+                this.elements.characterSelect.classList.add('hidden');
+                onSelectArchetype(archetype);
+            });
+        });
+    }
+
+    updateNarratorText(update) {
+        if (!this.elements.narratorText) return;
+
+        this.elements.narratorText.innerHTML = `<p>${update.text}</p>`;
+        if (update.effects.includes('glitch')) {
+            this.elements.narratorText.classList.add('glitch');
+            setTimeout(() => this.elements.narratorText.classList.remove('glitch'), this.config.TIMERS.GLITCH_EFFECT);
+        }
+    }
+
+    showDecisionButtons(decisions, onMakeDecision) {
+        if (!this.elements.decisionButtons) return;
+
+        this.elements.decisionButtons.innerHTML = '';
+        decisions.forEach((decision, index) => {
+            const button = document.createElement('button');
+            button.className = 'decision-btn';
+            button.textContent = decision.text;
+            button.addEventListener('click', () => {
+                onMakeDecision(index);
+                this.elements.decisionButtons.innerHTML = '';
+            });
+            this.elements.decisionButtons.appendChild(button);
+        });
+    }
+
+    updatePlayerInfo(playerData) {
+        if (this.elements.playerInfo.name) this.elements.playerInfo.name.textContent = playerData.name;
+        if (this.elements.playerInfo.archetype) this.elements.playerInfo.archetype.textContent = playerData.archetype;
+        if (this.elements.playerInfo.day) this.elements.playerInfo.day.textContent = playerData.day;
+        if (this.elements.playerInfo.sanity) this.elements.playerInfo.sanity.textContent = `${playerData.sanity}%`;
+    }
+
+    showErrorMessage(message) {
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 5px;
+            z-index: 10000;
+            font-family: 'Courier New', monospace;
+        `;
+        errorDiv.textContent = message;
+        document.body.appendChild(errorDiv);
     }
     
     isMobileDevice() {
