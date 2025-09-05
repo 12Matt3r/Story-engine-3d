@@ -51,5 +51,5 @@ class StoryManager {
     }
 }
 
-// Export the StoryManager
-export { StoryManager };
+// Export the StoryManager as StoryEngine for compatibility
+export { StoryManager as StoryEngine };
