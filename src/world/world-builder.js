@@ -1,6 +1,34 @@
 import * as THREE from 'three';
+import { Entity } from '../ecs/Entity.js';
+import { Rotatable } from '../components/Rotatable.js';
+import { Floatable } from '../components/Floatable.js';
 
-class WorldBuilder {
+export function createSurrealCube({ size = 1, color = 0xff00ff, rotate = {}, float = {} } = {}) {
+  const geo = new THREE.BoxGeometry(size, size, size);
+  const mat = new THREE.MeshStandardMaterial({ color, metalness: 0.1, roughness: 0.6 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+
+  const entity = new Entity({ object3D: mesh });
+  // Attach behaviors
+  entity.add(new Rotatable(rotate));
+  entity.add(new Floatable(float));
+
+  return entity;
+}
+
+export function wrapLegacyObject3D(mesh) {
+  const entity = new Entity({ object3D: mesh });
+
+  const ud = mesh.userData || {};
+  if (ud.rotatable) entity.add(new Rotatable(ud.rotatable));
+  if (ud.floatable) entity.add(new Floatable(ud.floatable));
+
+  return entity;
+}
+
+export class WorldBuilder {
     constructor(scene) {
         this.scene = scene;
         this.interactableObjects = [];
@@ -10,7 +38,7 @@ class WorldBuilder {
     createWorld() {
         this.createGround();
         this.createStoryNodes();
-        this.createSurrealObjects();
+        // this.createSurrealObjects(); // This is now handled by initScene in game.js
         this.createArchitecturalElements();
     }
     
@@ -100,41 +128,6 @@ class WorldBuilder {
         });
     }
     
-    createSurrealObjects() {
-        for (let i = 0; i < 12; i++) {
-            const geometry = new THREE.BoxGeometry(
-                0.5 + Math.random(),
-                0.5 + Math.random(),
-                0.5 + Math.random()
-            );
-            const material = new THREE.MeshLambertMaterial({
-                color: new THREE.Color().setHSL(Math.random(), 0.7, 0.5),
-                transparent: true,
-                opacity: 0.6
-            });
-            const cube = new THREE.Mesh(geometry, material);
-            
-            cube.position.set(
-                (Math.random() - 0.5) * 50,
-                2 + Math.random() * 5,
-                (Math.random() - 0.5) * 50
-            );
-
-            cube.rotation.set(
-                Math.random() * Math.PI,
-                Math.random() * Math.PI,
-                Math.random() * Math.PI
-            );
-
-            cube.userData = {
-                rotationSpeed: (Math.random() - 0.5) * 0.02,
-                floatSpeed: 0.5 + Math.random() * 0.5
-            };
-            
-            this.scene.add(cube);
-        }
-    }
-    
     createArchitecturalElements() {
         const stairGeometry = new THREE.BoxGeometry(10, 0.5, 2);
         const stairMaterial = new THREE.MeshLambertMaterial({
@@ -198,5 +191,3 @@ class WorldBuilder {
         return this.storyNodes;
     }
 }
-
-export { WorldBuilder };

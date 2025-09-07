@@ -2,13 +2,16 @@ import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 import { StoryEngine } from './story.js';
 import { UIManager } from './ui.js';
-import { WorldBuilder } from './world-builder.js';
+import { WorldBuilder, createSurrealCube } from './src/world/world-builder.js';
 import { InteractionSystem } from './interaction-system.js';
 import { ControlsManager } from './controls.js';
 import { EnvironmentalStorytellingSystem } from './environmental-storytelling.js';
 import { StoryDNASystem } from './story-dna.js';
 import { StoryArchaeologySystem } from './story-archaeology.js';
 import { EnvironmentalEffectsSystem } from './environmental-effects.js';
+import { World } from './src/ecs/World.js';
+
+const world = new World();
 
 class Game {
     constructor() {
@@ -30,6 +33,7 @@ class Game {
     init() {
         try {
             this.setupScene();
+            this.initScene();
             this.setupCamera();
             this.setupRenderer();
             this.setupControls();
@@ -46,26 +50,24 @@ class Game {
         } catch (error) {
             console.error('Critical error initializing game:', error);
             this.showErrorMessage('Failed to initialize game. Please refresh the page.');
-            // Attempt minimal initialization
-            this.initMinimalGame();
         }
     }
 
-    initMinimalGame() {
-        try {
-            this.setupScene();
-            this.setupCamera();
-            this.setupRenderer();
-            this.setupControls();
-            this.setupStoryEngine();
-            this.setupUIManager();
-            this.startGameLoop();
-            this.showLoadingScreen();
-        } catch (error) {
-            console.error('Even minimal game initialization failed:', error);
+    initScene() {
+        // Example: spawn a few cubes
+        for (let i = 0; i < 8; i++) {
+            const e = createSurrealCube({
+                size: 1 + Math.random() * 0.6,
+                color: new THREE.Color().setHSL(Math.random(), 0.7, 0.55),
+                rotate: { speed: 0.4 + Math.random() * 1.2, axis: Math.random() > 0.5 ? 'y' : 'x' },
+                float: { amplitude: 0.2 + Math.random() * 0.5, speed: 0.6 + Math.random() * 1.0, phase: Math.random() * Math.PI * 2 }
+            });
+            e.object3D.position.set((i - 4) * 2, 1.5, -4 - Math.random() * 3);
+            world.addEntity(e, { tags: ['surreal', 'cube'] });
+            this.scene.add(e.object3D);
         }
     }
-    
+
     setupScene() {
         this.scene = new THREE.Scene();
         this.scene.fog = new THREE.Fog(0x1a1a2e, 10, 100);
@@ -373,14 +375,13 @@ class Game {
             }
             
             this.updateDynamicGround(elapsedTime);
-            this.updateSurrealObjects(deltaTime, elapsedTime);
+            world.update(deltaTime);
             
             if (this.renderer && this.scene && this.camera) {
                 this.renderer.render(this.scene, this.camera);
             }
         } catch (error) {
             console.warn('Error in animation loop:', error);
-            // Continue the animation loop even if there's an error
         }
     }
     
@@ -392,15 +393,6 @@ class Game {
             ground.userData.material.uniforms.time.value = elapsedTime;
             ground.userData.material.uniforms.playerPos.value.copy(this.camera.position);
         }
-    }
-    
-    updateSurrealObjects(deltaTime, elapsedTime) {
-        this.scene.children.forEach(child => {
-            if (child.userData && child.userData.rotationSpeed !== undefined) {
-                child.rotation.y += child.userData.rotationSpeed;
-                child.position.y += Math.sin(elapsedTime * child.userData.floatSpeed) * 0.01;
-            }
-        });
     }
     
     showErrorMessage(message) {
