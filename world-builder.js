@@ -1,76 +1,5 @@
 import * as THREE from 'three';
 
-const WORLD_CONFIG = {
-    STORY_NODES: [
-        { pos: [0, 1, 0], color: 0x4a90e2, type: 'mirror', title: 'The Mirror of Reflection' },
-        { pos: [-10, 1, -5], color: 0x7ed321, type: 'tree', title: 'The Whispering Tree' },
-        { pos: [8, 1, -8], color: 0xf5a623, type: 'door', title: 'The Door to Nowhere' },
-        { pos: [0, 1, -15], color: 0xe94b3c, type: 'clock', title: 'The Broken Clock' },
-        { pos: [15, 1, 5], color: 0x9013fe, type: 'ai', title: 'The Crying AI' },
-        { pos: [-8, 1, 12], color: 0x50e3c2, type: 'void', title: 'The Void Caller' },
-        { pos: [-20, 1, -10], color: 0xb19cd9, type: 'library', title: 'The Infinite Library' },
-        { pos: [12, 1, -20], color: 0xff6b6b, type: 'laboratory', title: 'The Consciousness Lab' },
-        { pos: [25, 1, -5], color: 0x4ecdc4, type: 'theater', title: 'The Recursive Theater' }
-    ],
-    SURREAL_OBJECTS: {
-        CUBE: {
-            count: 12,
-            geometry: () => new THREE.BoxGeometry(
-                0.5 + Math.random(),
-                0.5 + Math.random(),
-                0.5 + Math.random()
-            ),
-            material: () => new THREE.MeshLambertMaterial({
-                color: new THREE.Color().setHSL(Math.random(), 0.7, 0.5),
-                transparent: true,
-                opacity: 0.6
-            }),
-            position: () => [
-                (Math.random() - 0.5) * 50,
-                2 + Math.random() * 5,
-                (Math.random() - 0.5) * 50
-            ],
-            rotation: () => [
-                Math.random() * Math.PI,
-                Math.random() * Math.PI,
-                Math.random() * Math.PI
-            ],
-            userData: () => ({
-                rotationSpeed: (Math.random() - 0.5) * 0.02,
-                floatSpeed: 0.5 + Math.random() * 0.5
-            })
-        }
-    },
-    ARCHITECTURAL_ELEMENTS: {
-        STAIRS: {
-            count: 5,
-            geometry: () => new THREE.BoxGeometry(10, 0.5, 2),
-            material: () => new THREE.MeshLambertMaterial({
-                color: 0x333366,
-                transparent: true,
-                opacity: 0.7
-            }),
-            position: (i) => [20, i * 2, -20 + i * 3],
-            rotation: (i) => [0, i * 0.3, 0]
-        },
-        PILLARS: {
-            count: 6,
-            geometry: () => new THREE.CylinderGeometry(0.5, 0.8, 8, 8),
-            material: () => new THREE.MeshLambertMaterial({
-                color: new THREE.Color().setHSL(0.8, 0.5, 0.3),
-                transparent: true,
-                opacity: 0.8
-            }),
-            position: () => [
-                (Math.random() - 0.5) * 60,
-                4,
-                (Math.random() - 0.5) * 60
-            ],
-            rotation: () => [0, 0, (Math.random() - 0.5) * 0.5]
-        }
-    }
-};
-
 class WorldBuilder {
     constructor(scene) {
         this.scene = scene;
@@ -134,7 +63,19 @@ class WorldBuilder {
     }
     
     createStoryNodes() {
-        WORLD_CONFIG.STORY_NODES.forEach((config) => {
+        const nodeConfigs = [
+            { pos: [0, 1, 0], color: 0x4a90e2, type: 'mirror', title: 'The Mirror of Reflection' },
+            { pos: [-10, 1, -5], color: 0x7ed321, type: 'tree', title: 'The Whispering Tree' },
+            { pos: [8, 1, -8], color: 0xf5a623, type: 'door', title: 'The Door to Nowhere' },
+            { pos: [0, 1, -15], color: 0xe94b3c, type: 'clock', title: 'The Broken Clock' },
+            { pos: [15, 1, 5], color: 0x9013fe, type: 'ai', title: 'The Crying AI' },
+            { pos: [-8, 1, 12], color: 0x50e3c2, type: 'void', title: 'The Void Caller' },
+            { pos: [-20, 1, -10], color: 0xb19cd9, type: 'library', title: 'The Infinite Library' },
+            { pos: [12, 1, -20], color: 0xff6b6b, type: 'laboratory', title: 'The Consciousness Lab' },
+            { pos: [25, 1, -5], color: 0x4ecdc4, type: 'theater', title: 'The Recursive Theater' }
+        ];
+
+        nodeConfigs.forEach((config, index) => {
             const geometry = new THREE.BoxGeometry(2, 3, 1);
             const material = new THREE.MeshLambertMaterial({ 
                 color: config.color,
@@ -160,34 +101,69 @@ class WorldBuilder {
     }
     
     createSurrealObjects() {
-        const { CUBE } = WORLD_CONFIG.SURREAL_OBJECTS;
-        for (let i = 0; i < CUBE.count; i++) {
-            const geometry = CUBE.geometry();
-            const material = CUBE.material();
+        for (let i = 0; i < 12; i++) {
+            const geometry = new THREE.BoxGeometry(
+                0.5 + Math.random(),
+                0.5 + Math.random(),
+                0.5 + Math.random()
+            );
+            const material = new THREE.MeshLambertMaterial({
+                color: new THREE.Color().setHSL(Math.random(), 0.7, 0.5),
+                transparent: true,
+                opacity: 0.6
+            });
             const cube = new THREE.Mesh(geometry, material);
             
-            cube.position.set(...CUBE.position());
-            cube.rotation.set(...CUBE.rotation());
-            cube.userData = CUBE.userData();
+            cube.position.set(
+                (Math.random() - 0.5) * 50,
+                2 + Math.random() * 5,
+                (Math.random() - 0.5) * 50
+            );
+
+            cube.rotation.set(
+                Math.random() * Math.PI,
+                Math.random() * Math.PI,
+                Math.random() * Math.PI
+            );
+
+            cube.userData = {
+                rotationSpeed: (Math.random() - 0.5) * 0.02,
+                floatSpeed: 0.5 + Math.random() * 0.5
+            };
             
             this.scene.add(cube);
         }
     }
     
     createArchitecturalElements() {
-        const { STAIRS, PILLARS } = WORLD_CONFIG.ARCHITECTURAL_ELEMENTS;
+        const stairGeometry = new THREE.BoxGeometry(10, 0.5, 2);
+        const stairMaterial = new THREE.MeshLambertMaterial({
+            color: 0x333366,
+            transparent: true,
+            opacity: 0.7
+        });
 
-        for (let i = 0; i < STAIRS.count; i++) {
-            const stair = new THREE.Mesh(STAIRS.geometry(), STAIRS.material());
-            stair.position.set(...STAIRS.position(i));
-            stair.rotation.set(...STAIRS.rotation(i));
+        for (let i = 0; i < 5; i++) {
+            const stair = new THREE.Mesh(stairGeometry, stairMaterial);
+            stair.position.set(20, i * 2, -20 + i * 3);
+            stair.rotation.y = i * 0.3;
             this.scene.add(stair);
         }
         
-        for (let i = 0; i < PILLARS.count; i++) {
-            const pillar = new THREE.Mesh(PILLARS.geometry(), PILLARS.material());
-            pillar.position.set(...PILLARS.position());
-            pillar.rotation.set(...PILLARS.rotation());
+        for (let i = 0; i < 6; i++) {
+            const pillarGeometry = new THREE.CylinderGeometry(0.5, 0.8, 8, 8);
+            const pillarMaterial = new THREE.MeshLambertMaterial({
+                color: new THREE.Color().setHSL(0.8, 0.5, 0.3),
+                transparent: true,
+                opacity: 0.8
+            });
+            const pillar = new THREE.Mesh(pillarGeometry, pillarMaterial);
+            pillar.position.set(
+                (Math.random() - 0.5) * 60,
+                4,
+                (Math.random() - 0.5) * 60
+            );
+            pillar.rotation.z = (Math.random() - 0.5) * 0.5;
             this.scene.add(pillar);
         }
     }
