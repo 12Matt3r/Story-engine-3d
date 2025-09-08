@@ -136,10 +136,13 @@ export class WorldBuilder {
         });
 
         for (let i = 0; i < 5; i++) {
-            const stair = new THREE.Mesh(stairGeometry, stairMaterial);
-            stair.position.set(20, i * 2, -20 + i * 3);
-            stair.rotation.y = i * 0.3;
-            this.scene.add(stair);
+            const mesh = new THREE.Mesh(stairGeometry, stairMaterial);
+            mesh.position.set(20, i * 2, -20 + i * 3);
+            mesh.rotation.y = i * 0.3;
+
+            const entity = new Entity({ object3D: mesh });
+            this.world.addEntity(entity, { tags: ['architectural'] });
+            this.scene.add(mesh);
         }
         
         for (let i = 0; i < 6; i++) {
@@ -149,14 +152,17 @@ export class WorldBuilder {
                 transparent: true,
                 opacity: 0.8
             });
-            const pillar = new THREE.Mesh(pillarGeometry, pillarMaterial);
-            pillar.position.set(
+            const mesh = new THREE.Mesh(pillarGeometry, pillarMaterial);
+            mesh.position.set(
                 (Math.random() - 0.5) * 60,
                 4,
                 (Math.random() - 0.5) * 60
             );
-            pillar.rotation.z = (Math.random() - 0.5) * 0.5;
-            this.scene.add(pillar);
+            mesh.rotation.z = (Math.random() - 0.5) * 0.5;
+
+            const entity = new Entity({ object3D: mesh });
+            this.world.addEntity(entity, { tags: ['architectural'] });
+            this.scene.add(mesh);
         }
     }
     
