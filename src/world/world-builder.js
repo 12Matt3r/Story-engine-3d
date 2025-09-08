@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Entity } from '../ecs/Entity.js';
 import { Rotatable } from '../components/Rotatable.js';
 import { Floatable } from '../components/Floatable.js';
+import { Interactable } from '../components/Interactable.js';
 
 export function createSurrealCube({ size = 1, color = 0xff00ff, rotate = {}, float = {} } = {}) {
   const geo = new THREE.BoxGeometry(size, size, size);
@@ -29,10 +30,9 @@ export function wrapLegacyObject3D(mesh) {
 }
 
 export class WorldBuilder {
-    constructor(scene) {
+    constructor(scene, world) {
         this.scene = scene;
-        this.interactableObjects = [];
-        this.storyNodes = [];
+        this.world = world;
     }
     
     createWorld() {
@@ -103,28 +103,27 @@ export class WorldBuilder {
             { pos: [25, 1, -5], color: 0x4ecdc4, type: 'theater', title: 'The Recursive Theater' }
         ];
 
-        nodeConfigs.forEach((config, index) => {
+        nodeConfigs.forEach((config) => {
             const geometry = new THREE.BoxGeometry(2, 3, 1);
             const material = new THREE.MeshLambertMaterial({ 
                 color: config.color,
                 transparent: true,
                 opacity: 0.7
             });
-            const node = new THREE.Mesh(geometry, material);
-            node.position.set(...config.pos);
-            node.castShadow = true;
-            node.userData = {
-                type: 'storyNode',
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(...config.pos);
+            mesh.castShadow = true;
+
+            const entity = new Entity({ object3D: mesh });
+            entity.add(new Interactable({
                 storyType: config.type,
                 title: config.title,
-                triggered: false
-            };
+            }));
             
-            this.scene.add(node);
-            this.interactableObjects.push(node);
-            this.storyNodes.push(node);
+            this.world.addEntity(entity, { tags: ['storyNode'] });
+            this.scene.add(mesh);
             
-            this.addFloatingText(config.title, node.position, 0.3);
+            this.addFloatingText(config.title, mesh.position, 0.3);
         });
     }
     
@@ -184,10 +183,13 @@ export class WorldBuilder {
     }
     
     getInteractableObjects() {
-        return this.interactableObjects;
+        // This method is now obsolete and should be removed in a future refactoring.
+        // For now, it returns an empty array to avoid breaking the InteractionSystem.
+        return [];
     }
     
     getStoryNodes() {
-        return this.storyNodes;
+        // This method is now obsolete and should be removed in a future refactoring.
+        return [];
     }
 }

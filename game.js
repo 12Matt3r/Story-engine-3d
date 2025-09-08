@@ -120,7 +120,7 @@ class Game {
     }
     
     setupWorld() {
-        this.worldBuilder = new WorldBuilder(this.scene);
+        this.worldBuilder = new WorldBuilder(this.scene, world);
         this.worldBuilder.createWorld();
     }
     
@@ -128,10 +128,8 @@ class Game {
         this.interactionSystem = new InteractionSystem(
             this.scene,
             this.camera,
-            this.storyEngine
-        );
-        this.interactionSystem.setInteractableObjects(
-            this.worldBuilder.getInteractableObjects()
+            this.storyEngine,
+            world
         );
     }
 
