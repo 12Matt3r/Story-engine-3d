@@ -1,0 +1,32 @@
+import { Component } from '../ecs/Component.js';
+
+export class DynamicGround extends Component {
+  /**
+   * @param {{
+   *   material: THREE.ShaderMaterial,
+   *   camera: THREE.Camera
+   * }} opts
+   */
+  constructor({ material, camera }) {
+    super();
+    this.material = material;
+    this.camera = camera;
+    this._t = 0;
+  }
+
+  update(dt) {
+    this._t += dt;
+    if (this.material.uniforms.time) {
+      this.material.uniforms.time.value = this._t;
+    }
+    if (this.material.uniforms.playerPos && this.camera) {
+      this.material.uniforms.playerPos.value.copy(this.camera.position);
+    }
+  }
+
+  toJSON() {
+    // This component is stateful and tied to scene objects,
+    // so serialization is not straightforward.
+    return {};
+  }
+}

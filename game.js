@@ -10,6 +10,7 @@ import { StoryDNASystem } from './story-dna.js';
 import { StoryArchaeologySystem } from './story-archaeology.js';
 import { EnvironmentalEffectsSystem } from './environmental-effects.js';
 import { World } from './src/ecs/World.js';
+import { Interactable } from './src/components/Interactable.js';
 
 const world = new World();
 
@@ -121,7 +122,7 @@ class Game {
     
     setupWorld() {
         this.worldBuilder = new WorldBuilder(this.scene, world);
-        this.worldBuilder.createWorld();
+        this.worldBuilder.createWorld(this.camera);
     }
     
     setupInteractionSystem() {
@@ -268,21 +269,21 @@ class Game {
             if (interactedObject) {
                 if (this.environmentalStorytelling && typeof this.environmentalStorytelling.activateMemoryPool === 'function') {
                     this.environmentalStorytelling.activateMemoryPool(
-                        interactedObject.userData.storyType, 
-                        interactedObject.position
+                        interactedObject.get(Interactable).storyType,
+                        interactedObject.object3D.position
                     );
                 }
                 
                 if (this.storyArchaeology && typeof this.storyArchaeology.recordChoiceInArchaeology === 'function') {
                     this.storyArchaeology.recordChoiceInArchaeology(
-                        interactedObject, 
+                        interactedObject.object3D,
                         this.storyDNASystem
                     );
                 }
                 
                 if (this.environmentalEffects && typeof this.environmentalEffects.updateStoryWeather === 'function') {
                     this.environmentalEffects.updateStoryWeather(
-                        interactedObject.userData.storyType
+                        interactedObject.get(Interactable).storyType
                     );
                 }
             }
@@ -350,29 +351,27 @@ class Game {
         
         try {
             const deltaTime = this.clock.getDelta();
-            const elapsedTime = this.clock.getElapsedTime();
             
             if (this.controlsManager && typeof this.controlsManager.update === 'function') {
                 this.controlsManager.update(deltaTime);
             }
 
             if (this.environmentalStorytelling && typeof this.environmentalStorytelling.update === 'function') {
-                this.environmentalStorytelling.update(deltaTime, elapsedTime, this.camera);
+                this.environmentalStorytelling.update(deltaTime, this.clock.getElapsedTime(), this.camera);
             }
 
             if (this.storyDNASystem && typeof this.storyDNASystem.update === 'function') {
-                this.storyDNASystem.update(deltaTime, elapsedTime);
+                this.storyDNASystem.update(deltaTime, this.clock.getElapsedTime());
             }
 
             if (this.storyArchaeology && typeof this.storyArchaeology.update === 'function') {
-                this.storyArchaeology.update(deltaTime, elapsedTime);
+                this.storyArchaeology.update(deltaTime, this.clock.getElapsedTime());
             }
 
             if (this.environmentalEffects && typeof this.environmentalEffects.update === 'function') {
-                this.environmentalEffects.update(deltaTime, elapsedTime);
+                this.environmentalEffects.update(deltaTime, this.clock.getElapsedTime());
             }
             
-            this.updateDynamicGround(elapsedTime);
             world.update(deltaTime);
             
             if (this.renderer && this.scene && this.camera) {
@@ -380,16 +379,6 @@ class Game {
             }
         } catch (error) {
             console.warn('Error in animation loop:', error);
-        }
-    }
-    
-    updateDynamicGround(elapsedTime) {
-        const ground = this.scene.children.find(child => 
-            child.userData && child.userData.type === 'dynamicGround'
-        );
-        if (ground && ground.userData.material.uniforms) {
-            ground.userData.material.uniforms.time.value = elapsedTime;
-            ground.userData.material.uniforms.playerPos.value.copy(this.camera.position);
         }
     }
     

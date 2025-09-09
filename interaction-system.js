@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Interactable } from '../src/components/Interactable.js';
+import { Interactable } from './src/components/Interactable.js';
 
 class InteractionSystem {
     constructor(scene, camera, storyEngine, world) {
@@ -26,7 +26,7 @@ class InteractionSystem {
                 const interactable = entity.get(Interactable);
                 if (interactable && !interactable.triggered) {
                     this.triggerStoryNode(entity);
-                    return entity; // Returning the entity now
+                    return entity;
                 }
             }
         }
@@ -39,16 +39,13 @@ class InteractionSystem {
 
         interactable.triggered = true;
         
-        // Visual feedback
         const mesh = entity.object3D;
         if (mesh.material.emissive) {
             mesh.material.emissive.setHex(0x333333);
         }
         
-        // Trigger story event
         this.storyEngine.triggerEvent(interactable.storyType, interactable.title);
         
-        // Add glitch effect
         const sprite = this.scene.children.find(child => 
             child.isSprite && 
             child.position.distanceTo(mesh.position) < 3

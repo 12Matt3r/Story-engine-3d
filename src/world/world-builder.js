@@ -3,6 +3,7 @@ import { Entity } from '../ecs/Entity.js';
 import { Rotatable } from '../components/Rotatable.js';
 import { Floatable } from '../components/Floatable.js';
 import { Interactable } from '../components/Interactable.js';
+import { DynamicGround } from '../components/DynamicGround.js';
 
 export function createSurrealCube({ size = 1, color = 0xff00ff, rotate = {}, float = {} } = {}) {
   const geo = new THREE.BoxGeometry(size, size, size);
@@ -12,19 +13,8 @@ export function createSurrealCube({ size = 1, color = 0xff00ff, rotate = {}, flo
   mesh.receiveShadow = true;
 
   const entity = new Entity({ object3D: mesh });
-  // Attach behaviors
   entity.add(new Rotatable(rotate));
   entity.add(new Floatable(float));
-
-  return entity;
-}
-
-export function wrapLegacyObject3D(mesh) {
-  const entity = new Entity({ object3D: mesh });
-
-  const ud = mesh.userData || {};
-  if (ud.rotatable) entity.add(new Rotatable(ud.rotatable));
-  if (ud.floatable) entity.add(new Floatable(ud.floatable));
 
   return entity;
 }
@@ -35,14 +25,13 @@ export class WorldBuilder {
         this.world = world;
     }
     
-    createWorld() {
-        this.createGround();
+    createWorld(camera) {
+        this.createGround(camera);
         this.createStoryNodes();
-        // this.createSurrealObjects(); // This is now handled by initScene in game.js
         this.createArchitecturalElements();
     }
     
-    createGround() {
+    createGround(camera) {
         const groundGeometry = new THREE.PlaneGeometry(100, 100, 20, 20);
         const groundMaterial = new THREE.ShaderMaterial({
             uniforms: {
@@ -83,11 +72,15 @@ export class WorldBuilder {
             transparent: true
         });
         
-        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-        ground.rotation.x = -Math.PI / 2;
-        ground.receiveShadow = true;
-        ground.userData = { type: 'dynamicGround', material: groundMaterial };
-        this.scene.add(ground);
+        const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
+        groundMesh.rotation.x = -Math.PI / 2;
+        groundMesh.receiveShadow = true;
+
+        const groundEntity = new Entity({ object3D: groundMesh });
+        groundEntity.add(new DynamicGround({ material: groundMaterial, camera: camera }));
+
+        this.world.addEntity(groundEntity, { tags: ['ground'] });
+        this.scene.add(groundMesh);
     }
     
     createStoryNodes() {
@@ -186,16 +179,5 @@ export class WorldBuilder {
         
         this.scene.add(sprite);
         return sprite;
-    }
-    
-    getInteractableObjects() {
-        // This method is now obsolete and should be removed in a future refactoring.
-        // For now, it returns an empty array to avoid breaking the InteractionSystem.
-        return [];
-    }
-    
-    getStoryNodes() {
-        // This method is now obsolete and should be removed in a future refactoring.
-        return [];
     }
 }
