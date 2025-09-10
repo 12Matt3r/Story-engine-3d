@@ -1,20 +1,38 @@
 import * as THREE from 'three';
+import { Entity } from '../ecs/Entity.js';
+import { Rotatable } from '../components/Rotatable.js';
+import { Floatable } from '../components/Floatable.js';
+import { Interactable } from '../components/Interactable.js';
+import { DynamicGround } from '../components/DynamicGround.js';
+import { HoverHighlight } from '../components/HoverHighlight.js';
 
-class WorldBuilder {
-    constructor(scene) {
+export function createSurrealCube({ size = 1, color = 0xff00ff, rotate = {}, float = {} } = {}) {
+  const geo = new THREE.BoxGeometry(size, size, size);
+  const mat = new THREE.MeshStandardMaterial({ color, metalness: 0.1, roughness: 0.6 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+
+  const entity = new Entity({ object3D: mesh });
+  entity.add(new Rotatable(rotate));
+  entity.add(new Floatable(float));
+
+  return entity;
+}
+
+export class WorldBuilder {
+    constructor(scene, world) {
         this.scene = scene;
-        this.interactableObjects = [];
-        this.storyNodes = [];
+        this.world = world;
     }
     
-    createWorld() {
-        this.createGround();
+    createWorld(camera) {
+        this.createGround(camera);
         this.createStoryNodes();
-        this.createSurrealObjects();
         this.createArchitecturalElements();
     }
     
-    createGround() {
+    createGround(camera) {
         const groundGeometry = new THREE.PlaneGeometry(100, 100, 20, 20);
         const groundMaterial = new THREE.ShaderMaterial({
             uniforms: {
@@ -55,11 +73,15 @@ class WorldBuilder {
             transparent: true
         });
         
-        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-        ground.rotation.x = -Math.PI / 2;
-        ground.receiveShadow = true;
-        ground.userData = { type: 'dynamicGround', material: groundMaterial };
-        this.scene.add(ground);
+        const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
+        groundMesh.rotation.x = -Math.PI / 2;
+        groundMesh.receiveShadow = true;
+
+        const groundEntity = new Entity({ object3D: groundMesh });
+        groundEntity.add(new DynamicGround({ material: groundMaterial, camera: camera }));
+
+        this.world.addEntity(groundEntity, { tags: ['ground'] });
+        this.scene.add(groundMesh);
     }
     
     createStoryNodes() {
@@ -74,80 +96,49 @@ class WorldBuilder {
             { pos: [12, 1, -20], color: 0xff6b6b, type: 'laboratory', title: 'The Consciousness Lab' },
             { pos: [25, 1, -5], color: 0x4ecdc4, type: 'theater', title: 'The Recursive Theater' }
         ];
-        
-        nodeConfigs.forEach((config, index) => {
+
+        nodeConfigs.forEach((config) => {
             const geometry = new THREE.BoxGeometry(2, 3, 1);
             const material = new THREE.MeshLambertMaterial({ 
                 color: config.color,
                 transparent: true,
-                opacity: 0.7
+                opacity: 0.7,
+                emissive: 0x000000
             });
-            const node = new THREE.Mesh(geometry, material);
-            node.position.set(...config.pos);
-            node.castShadow = true;
-            node.userData = {
-                type: 'storyNode',
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(...config.pos);
+            mesh.castShadow = true;
+
+            const entity = new Entity({ object3D: mesh });
+            entity.add(new Interactable({
                 storyType: config.type,
                 title: config.title,
-                triggered: false
-            };
+            }));
+            entity.add(new HoverHighlight());
             
-            this.scene.add(node);
-            this.interactableObjects.push(node);
-            this.storyNodes.push(node);
+            this.world.addEntity(entity, { tags: ['storyNode'] });
+            this.scene.add(mesh);
             
-            this.addFloatingText(config.title, node.position, 0.3);
+            this.addFloatingText(config.title, mesh.position, 0.3);
         });
-    }
-    
-    createSurrealObjects() {
-        for (let i = 0; i < 12; i++) {
-            const geometry = new THREE.BoxGeometry(
-                0.5 + Math.random(),
-                0.5 + Math.random(),
-                0.5 + Math.random()
-            );
-            const material = new THREE.MeshLambertMaterial({
-                color: new THREE.Color().setHSL(Math.random(), 0.7, 0.5),
-                transparent: true,
-                opacity: 0.6
-            });
-            const cube = new THREE.Mesh(geometry, material);
-            
-            cube.position.set(
-                (Math.random() - 0.5) * 50,
-                2 + Math.random() * 5,
-                (Math.random() - 0.5) * 50
-            );
-            
-            cube.rotation.set(
-                Math.random() * Math.PI,
-                Math.random() * Math.PI,
-                Math.random() * Math.PI
-            );
-            
-            cube.userData = { 
-                rotationSpeed: (Math.random() - 0.5) * 0.02,
-                floatSpeed: 0.5 + Math.random() * 0.5
-            };
-            
-            this.scene.add(cube);
-        }
     }
     
     createArchitecturalElements() {
         const stairGeometry = new THREE.BoxGeometry(10, 0.5, 2);
-        const stairMaterial = new THREE.MeshLambertMaterial({ 
+        const stairMaterial = new THREE.MeshLambertMaterial({
             color: 0x333366,
             transparent: true,
             opacity: 0.7
         });
-        
+
         for (let i = 0; i < 5; i++) {
-            const stair = new THREE.Mesh(stairGeometry, stairMaterial);
-            stair.position.set(20, i * 2, -20 + i * 3);
-            stair.rotation.y = i * 0.3;
-            this.scene.add(stair);
+            const mesh = new THREE.Mesh(stairGeometry, stairMaterial);
+            mesh.position.set(20, i * 2, -20 + i * 3);
+            mesh.rotation.y = i * 0.3;
+
+            const entity = new Entity({ object3D: mesh });
+            this.world.addEntity(entity, { tags: ['architectural'] });
+            this.scene.add(mesh);
         }
         
         for (let i = 0; i < 6; i++) {
@@ -157,14 +148,17 @@ class WorldBuilder {
                 transparent: true,
                 opacity: 0.8
             });
-            const pillar = new THREE.Mesh(pillarGeometry, pillarMaterial);
-            pillar.position.set(
+            const mesh = new THREE.Mesh(pillarGeometry, pillarMaterial);
+            mesh.position.set(
                 (Math.random() - 0.5) * 60,
                 4,
                 (Math.random() - 0.5) * 60
             );
-            pillar.rotation.z = (Math.random() - 0.5) * 0.5;
-            this.scene.add(pillar);
+            mesh.rotation.z = (Math.random() - 0.5) * 0.5;
+
+            const entity = new Entity({ object3D: mesh });
+            this.world.addEntity(entity, { tags: ['architectural'] });
+            this.scene.add(mesh);
         }
     }
     
@@ -189,14 +183,4 @@ class WorldBuilder {
         this.scene.add(sprite);
         return sprite;
     }
-    
-    getInteractableObjects() {
-        return this.interactableObjects;
-    }
-    
-    getStoryNodes() {
-        return this.storyNodes;
-    }
 }
-
-export { WorldBuilder };

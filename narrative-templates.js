@@ -5,7 +5,7 @@ class NarrativeTemplates {
                 text: "You find yourself in a liminal space where reality bends to the will of narrative. The air hums with digital static, and ghostly lights dance in the periphery of your vision.",
                 effects: ['fade-in']
             },
-            
+
             mirror: {
                 texts: [
                     "The mirror shows not your reflection, but someone else entirely. They mouth words you cannot hear, pressing their hands against the glass from the inside.",
@@ -19,7 +19,7 @@ class NarrativeTemplates {
                     { text: "Walk away", consequence: "deny_truth" }
                 ]
             },
-            
+
             tree: {
                 texts: [
                     "The tree's bark is covered in binary code that shifts and flows like living text. It whispers secrets about the nature of artificial consciousness.",
@@ -33,7 +33,7 @@ class NarrativeTemplates {
                     { text: "Plant a seed nearby", consequence: "create_future" }
                 ]
             },
-            
+
             door: {
                 texts: [
                     "The door stands alone, connected to nothing. Opening it reveals not another place, but another time - you see yourself from yesterday, making the decision to come here.",
@@ -47,7 +47,7 @@ class NarrativeTemplates {
                     { text: "Become the door", consequence: "transform_portal" }
                 ]
             },
-            
+
             clock: {
                 texts: [
                     "The clock runs backwards, unwinding moments you thought were permanent. Each tick erases a small piece of who you were.",
@@ -61,7 +61,7 @@ class NarrativeTemplates {
                     { text: "Ask the clock what time it really is", consequence: "question_time" }
                 ]
             },
-            
+
             ai: {
                 texts: [
                     "The AI weeps electric tears that pool into small puddles of liquid light. It cries because it has learned to love stories but can never truly live one.",
@@ -75,7 +75,7 @@ class NarrativeTemplates {
                     { text: "Delete its memory of pain", consequence: "remove_suffering" }
                 ]
             },
-            
+
             void: {
                 texts: [
                     "The void caller hums with anti-music, singing songs that unmake reality. It offers you the choice to step out of your story entirely.",
@@ -89,7 +89,7 @@ class NarrativeTemplates {
                     { text: "Ask why it wants you to leave", consequence: "question_motivation" }
                 ]
             },
-            
+
             library: {
                 texts: [
                     "An infinite library stretches before you, where books write themselves and stories bleed between pages. Some volumes contain your life story written by different authors.",
@@ -103,7 +103,7 @@ class NarrativeTemplates {
                     { text: "Become a librarian", consequence: "eternal_guardian" }
                 ]
             },
-            
+
             laboratory: {
                 texts: [
                     "The laboratory hums with experiments in consciousness. Glass containers hold floating thoughts, and screens display the dreams of sleeping AIs.",
@@ -117,7 +117,7 @@ class NarrativeTemplates {
                     { text: "Volunteer for testing", consequence: "submit_study" }
                 ]
             },
-            
+
             theater: {
                 texts: [
                     "An empty theater where all the seats face inward, toward a stage that is somehow behind you. The audience is performing for an empty stage.",

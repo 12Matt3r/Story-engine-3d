@@ -2,13 +2,16 @@ import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 import { StoryEngine } from './story.js';
 import { UIManager } from './ui.js';
-import { WorldBuilder } from './world-builder.js';
+import { WorldBuilder } from './src/world/world-builder.js';
 import { InteractionSystem } from './interaction-system.js';
 import { ControlsManager } from './controls.js';
 import { EnvironmentalStorytellingSystem } from './environmental-storytelling.js';
 import { StoryDNASystem } from './story-dna.js';
 import { StoryArchaeologySystem } from './story-archaeology.js';
 import { EnvironmentalEffectsSystem } from './environmental-effects.js';
+import { World } from './src/ecs/World.js';
+import { Interactable } from './src/components/Interactable.js';
+import './src/ecs/types.js';
 
 class Game {
     constructor() {
@@ -23,12 +26,14 @@ class Game {
         this.controlsManager = null;
         this.clock = new THREE.Clock();
         this.isInitialized = false;
+        this.world = null;
         
         this.init();
     }
     
     init() {
         try {
+            this.world = new World();
             this.setupScene();
             this.setupCamera();
             this.setupRenderer();
@@ -50,9 +55,10 @@ class Game {
             this.initMinimalGame();
         }
     }
-    
+
     initMinimalGame() {
         try {
+            this.world = new World();
             this.setupScene();
             this.setupCamera();
             this.setupRenderer();
@@ -65,7 +71,7 @@ class Game {
             console.error('Even minimal game initialization failed:', error);
         }
     }
-    
+
     setupScene() {
         this.scene = new THREE.Scene();
         this.scene.fog = new THREE.Fog(0x1a1a2e, 10, 100);
@@ -100,7 +106,7 @@ class Game {
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.setClearColor(0x1a1a2e, 1);
     }
-    
+
     setupControls() {
         this.controls = new PointerLockControls(this.camera, document.body);
         this.controlsManager = new ControlsManager(this.camera, this.controls);
@@ -118,32 +124,30 @@ class Game {
     }
     
     setupWorld() {
-        this.worldBuilder = new WorldBuilder(this.scene);
-        this.worldBuilder.createWorld();
+        this.worldBuilder = new WorldBuilder(this.scene, this.world);
+        this.worldBuilder.createWorld(this.camera);
     }
     
     setupInteractionSystem() {
         this.interactionSystem = new InteractionSystem(
-            this.scene, 
-            this.camera, 
-            this.storyEngine
-        );
-        this.interactionSystem.setInteractableObjects(
-            this.worldBuilder.getInteractableObjects()
+            this.scene,
+            this.camera,
+            this.storyEngine,
+            this.world
         );
     }
-    
+
     setupEnvironmentalSystems() {
         try {
             this.environmentalStorytelling = new EnvironmentalStorytellingSystem(
-                this.scene, 
+                this.scene,
                 this.storyEngine
             );
         } catch (error) {
             console.warn('Error creating environmental storytelling:', error);
             this.environmentalStorytelling = null;
         }
-        
+
         try {
             this.storyDNASystem = new StoryDNASystem(this.scene);
         } catch (error) {
@@ -157,7 +161,7 @@ class Game {
             console.warn('Error creating story archaeology:', error);
             this.storyArchaeology = null;
         }
-        
+
         try {
             this.environmentalEffects = new EnvironmentalEffectsSystem(this.scene);
         } catch (error) {
@@ -193,7 +197,7 @@ class Game {
         try {
             const ambientAudio = document.getElementById('ambient-audio');
             const mysterySound = document.getElementById('mystery-sound');
-            
+
             if (ambientAudio) {
                 ambientAudio.volume = 0.3;
                 const playPromise = ambientAudio.play();
@@ -203,7 +207,7 @@ class Game {
                     });
                 }
             }
-            
+
             if (mysterySound) {
                 mysterySound.volume = 0.1;
                 const playPromise = mysterySound.play();
@@ -217,7 +221,7 @@ class Game {
             console.warn('Audio initialization failed:', error);
         }
     }
-    
+
     startGameLoop() {
         this.animate();
     }
@@ -247,7 +251,7 @@ class Game {
         const modal = document.getElementById('character-select');
         if (modal) {
             modal.classList.remove('hidden');
-            
+
             const cards = modal.querySelectorAll('.archetype-card');
             cards.forEach(card => {
                 card.addEventListener('click', () => {
@@ -264,25 +268,28 @@ class Game {
         if (this.storyEngine.isWaitingForDecision) return;
         
         try {
-            const interactedObject = this.interactionSystem.handleInteraction();
-            if (interactedObject) {
+            const interactedEntity = this.interactionSystem.handleInteraction();
+            if (interactedEntity) {
+                const interactable = interactedEntity.get(Interactable);
+                if (!interactable) return;
+
                 if (this.environmentalStorytelling && typeof this.environmentalStorytelling.activateMemoryPool === 'function') {
                     this.environmentalStorytelling.activateMemoryPool(
-                        interactedObject.userData.storyType, 
-                        interactedObject.position
+                        interactable.storyType,
+                        interactedEntity.object3D.position
                     );
                 }
                 
                 if (this.storyArchaeology && typeof this.storyArchaeology.recordChoiceInArchaeology === 'function') {
                     this.storyArchaeology.recordChoiceInArchaeology(
-                        interactedObject, 
+                        interactedEntity,
                         this.storyDNASystem
                     );
                 }
                 
                 if (this.environmentalEffects && typeof this.environmentalEffects.updateStoryWeather === 'function') {
                     this.environmentalEffects.updateStoryWeather(
-                        interactedObject.userData.storyType
+                        interactable.storyType
                     );
                 }
             }
@@ -300,14 +307,14 @@ class Game {
                 setTimeout(() => narratorText.classList.remove('glitch'), 1000);
             }
         }
-        
+
         this.updatePlayerInfo();
     }
     
     handleDecisionRequired(decisions) {
         const container = document.getElementById('decision-buttons');
         if (!container) return;
-        
+
         container.innerHTML = '';
         decisions.forEach((decision, index) => {
             const button = document.createElement('button');
@@ -324,7 +331,7 @@ class Game {
     handleEnvironmentChange(change) {
         this.environmentalEffects.updateStoryWeather(change.consequence);
     }
-    
+
     updatePlayerInfo() {
         const elements = {
             'player-name': this.storyEngine.playerData.name,
@@ -332,7 +339,7 @@ class Game {
             'current-day': this.storyEngine.playerData.day,
             'sanity-level': `${this.storyEngine.playerData.sanity}%`
         };
-        
+
         Object.entries(elements).forEach(([id, value]) => {
             const element = document.getElementById(id);
             if (element) element.textContent = value;
@@ -355,25 +362,30 @@ class Game {
             if (this.controlsManager && typeof this.controlsManager.update === 'function') {
                 this.controlsManager.update(deltaTime);
             }
-            
+
+            // Update all ECS systems
+            if (this.world) {
+                /** @type {UpdateCtx} */
+                const ctx = { dt: deltaTime, t: elapsedTime };
+                this.world.update(ctx);
+            }
+
+            // Update legacy systems
+            if (this.interactionSystem && typeof this.interactionSystem.update === 'function') {
+                this.interactionSystem.update(deltaTime);
+            }
             if (this.environmentalStorytelling && typeof this.environmentalStorytelling.update === 'function') {
                 this.environmentalStorytelling.update(deltaTime, elapsedTime, this.camera);
             }
-            
             if (this.storyDNASystem && typeof this.storyDNASystem.update === 'function') {
                 this.storyDNASystem.update(deltaTime, elapsedTime);
             }
-            
             if (this.storyArchaeology && typeof this.storyArchaeology.update === 'function') {
                 this.storyArchaeology.update(deltaTime, elapsedTime);
             }
-            
             if (this.environmentalEffects && typeof this.environmentalEffects.update === 'function') {
                 this.environmentalEffects.update(deltaTime, elapsedTime);
             }
-            
-            this.updateDynamicGround(elapsedTime);
-            this.updateSurrealObjects(deltaTime, elapsedTime);
             
             if (this.renderer && this.scene && this.camera) {
                 this.renderer.render(this.scene, this.camera);
@@ -382,25 +394,6 @@ class Game {
             console.warn('Error in animation loop:', error);
             // Continue the animation loop even if there's an error
         }
-    }
-    
-    updateDynamicGround(elapsedTime) {
-        const ground = this.scene.children.find(child => 
-            child.userData && child.userData.type === 'dynamicGround'
-        );
-        if (ground && ground.userData.material.uniforms) {
-            ground.userData.material.uniforms.time.value = elapsedTime;
-            ground.userData.material.uniforms.playerPos.value.copy(this.camera.position);
-        }
-    }
-    
-    updateSurrealObjects(deltaTime, elapsedTime) {
-        this.scene.children.forEach(child => {
-            if (child.userData && child.userData.rotationSpeed !== undefined) {
-                child.rotation.y += child.userData.rotationSpeed;
-                child.position.y += Math.sin(elapsedTime * child.userData.floatSpeed) * 0.01;
-            }
-        });
     }
     
     showErrorMessage(message) {
