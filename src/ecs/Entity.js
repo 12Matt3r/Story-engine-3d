@@ -1,3 +1,5 @@
+import './types.js';
+
 export class Entity {
   constructor({ id, object3D }) {
     this.id = id ?? crypto.randomUUID?.() ?? String(Math.random());
@@ -24,9 +26,12 @@ export class Entity {
   get(ComponentType) { return this._components.get(ComponentType); }
   has(ComponentType) { return this._components.has(ComponentType); }
 
-  update(dt) {
+  /** @param {UpdateCtx} ctx */
+  update(ctx) {
     if (!this.enabled) return;
-    for (const c of this._components.values()) c.update?.(dt);
+    for (const component of this._components.values()) {
+      component.update?.(ctx);
+    }
   }
 
   toJSON() {

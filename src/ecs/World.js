@@ -1,3 +1,5 @@
+import './types.js';
+
 export class World {
   constructor() {
     this.entities = new Map();  // id -> Entity
@@ -18,9 +20,11 @@ export class World {
     for (const set of this.tags.values()) set.delete(entity);
   }
 
-  /** @param {number} dt seconds */
-  update(dt) {
-    for (const e of this.entities.values()) e.update(dt);
+  /** @param {UpdateCtx} ctx */
+  update(ctx) {
+    for (const entity of this.entities.values()) {
+      entity.update(ctx);
+    }
   }
 
   queryByTag(tag) { return this.tags.get(tag) ?? new Set(); }

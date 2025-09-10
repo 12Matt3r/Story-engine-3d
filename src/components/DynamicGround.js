@@ -11,13 +11,11 @@ export class DynamicGround extends Component {
     super();
     this.material = material;
     this.camera = camera;
-    this._t = 0;
   }
 
-  update(dt) {
-    this._t += dt;
+  update({ t }) {
     if (this.material.uniforms.time) {
-      this.material.uniforms.time.value = this._t;
+      this.material.uniforms.time.value = t;
     }
     if (this.material.uniforms.playerPos && this.camera) {
       this.material.uniforms.playerPos.value.copy(this.camera.position);

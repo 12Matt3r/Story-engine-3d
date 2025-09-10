@@ -9,7 +9,6 @@ export class Floatable extends Component {
     this.amp = amplitude;
     this.speed = speed;
     this.phase = phase;
-    this._t = 0;
     this._baseY = undefined;
   }
 
@@ -19,11 +18,10 @@ export class Floatable extends Component {
     if (o) this._baseY = o.position.y;
   }
 
-  update(dt) {
+  update({ t }) {
     const o = this.entity.object3D;
     if (!o || this._baseY === undefined) return;
-    this._t += dt * this.speed;
-    o.position.y = this._baseY + Math.sin(this._t + this.phase) * this.amp;
+    o.position.y = this._baseY + Math.sin(t * this.speed + this.phase) * this.amp;
   }
 
   toJSON() { return { amplitude: this.amp, speed: this.speed, phase: this.phase }; }

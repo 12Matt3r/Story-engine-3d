@@ -4,6 +4,7 @@ import { Rotatable } from '../components/Rotatable.js';
 import { Floatable } from '../components/Floatable.js';
 import { Interactable } from '../components/Interactable.js';
 import { DynamicGround } from '../components/DynamicGround.js';
+import { HoverHighlight } from '../components/HoverHighlight.js';
 
 export function createSurrealCube({ size = 1, color = 0xff00ff, rotate = {}, float = {} } = {}) {
   const geo = new THREE.BoxGeometry(size, size, size);
@@ -101,7 +102,8 @@ export class WorldBuilder {
             const material = new THREE.MeshLambertMaterial({ 
                 color: config.color,
                 transparent: true,
-                opacity: 0.7
+                opacity: 0.7,
+                emissive: 0x000000
             });
             const mesh = new THREE.Mesh(geometry, material);
             mesh.position.set(...config.pos);
@@ -112,6 +114,7 @@ export class WorldBuilder {
                 storyType: config.type,
                 title: config.title,
             }));
+            entity.add(new HoverHighlight());
             
             this.world.addEntity(entity, { tags: ['storyNode'] });
             this.scene.add(mesh);

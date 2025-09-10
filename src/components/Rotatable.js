@@ -10,13 +10,13 @@ export class Rotatable extends Component {
     this.axis = axis;
   }
 
-  update(dt) {
+  update({ t }) {
     const o = this.entity.object3D;
     if (!o) return;
-    const d = this.speed * dt;
-    if (this.axis === 'x') o.rotation.x += d;
-    else if (this.axis === 'y') o.rotation.y += d;
-    else o.rotation.z += d;
+    const angle = t * this.speed;
+    if (this.axis === 'x') o.rotation.x = angle;
+    else if (this.axis === 'y') o.rotation.y = angle;
+    else o.rotation.z = angle;
   }
 
   toJSON() { return { speed: this.speed, axis: this.axis }; }
