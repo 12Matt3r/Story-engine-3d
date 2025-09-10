@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Interactable } from './src/components/Interactable.js';
-import { HoverHighlight } from './src/components/HoverHighlight.js';
+import { Hovered } from './src/components/Hovered.js';
 
 class InteractionSystem {
     constructor(scene, camera, storyEngine, world) {
@@ -23,18 +23,19 @@ class InteractionSystem {
         let intersectedEntity = null;
         if (intersects.length > 0) {
             const mesh = intersects[0].object;
-            const entity = [...interactableEntities].find(e => e.object3D === mesh);
-            if (entity && entity.has(HoverHighlight)) {
-                intersectedEntity = entity;
+            // Find the entity that owns this mesh
+            intersectedEntity = [...interactableEntities].find(e => e.object3D === mesh) || null;
+        }
+
+        // Manage the Hovered component
+        if (this.currentlyHovered && this.currentlyHovered !== intersectedEntity) {
+            if (this.currentlyHovered.has(Hovered)) {
+                this.currentlyHovered.remove(Hovered);
             }
         }
 
-        if (this.currentlyHovered && this.currentlyHovered !== intersectedEntity) {
-            this.currentlyHovered.get(HoverHighlight)?.onHoverEnd();
-        }
-
-        if (intersectedEntity && this.currentlyHovered !== intersectedEntity) {
-            intersectedEntity.get(HoverHighlight)?.onHoverStart();
+        if (intersectedEntity && !intersectedEntity.has(Hovered)) {
+            intersectedEntity.add(new Hovered());
         }
 
         this.currentlyHovered = intersectedEntity;
@@ -57,7 +58,10 @@ class InteractionSystem {
 
         interactable.triggered = true;
         
-        entity.get(HoverHighlight)?.onHoverEnd();
+        // When an object is triggered, it's no longer hovered
+        if (entity.has(Hovered)) {
+            entity.remove(Hovered);
+        }
         this.currentlyHovered = null;
 
         const mesh = entity.object3D;
