@@ -261,13 +261,13 @@ class EnvironmentalEffectsSystem {
         }
     }
     
-    update(deltaTime, elapsedTime) {
-        this.animateStoryWeather(deltaTime, elapsedTime);
-        this.updateWhisperClouds(deltaTime, elapsedTime);
-        this.animateNarrativeShadows(deltaTime, elapsedTime);
+    update(ctx) {
+        this.animateStoryWeather(ctx);
+        this.updateWhisperClouds(ctx);
+        this.animateNarrativeShadows(ctx);
     }
     
-    animateStoryWeather(deltaTime, elapsedTime) {
+    animateStoryWeather({ dt, t }) {
         if (!this.storyWeather || !this.storyWeather.particles || this.storyWeather.particles.length === 0) return;
         
         const weatherSystem = this.storyWeather.particles[0];
@@ -279,22 +279,22 @@ class EnvironmentalEffectsSystem {
         switch (this.storyWeather.currentWeather) {
             case 'reflective_rain':
                 for (let i = 1; i < positions.length; i += 3) {
-                    positions[i] -= deltaTime * 5; // Fall down
+                    positions[i] -= dt * 5; // Fall down
                     if (positions[i] < 0) positions[i] = 20; // Reset to top
                 }
                 break;
                 
             case 'whisper_wind':
                 for (let i = 0; i < positions.length; i += 3) {
-                    positions[i] += Math.sin(elapsedTime + i) * deltaTime * 2;
-                    positions[i + 2] += Math.cos(elapsedTime + i) * deltaTime * 2;
+                    positions[i] += Math.sin(t + i) * dt * 2;
+                    positions[i + 2] += Math.cos(t + i) * dt * 2;
                 }
                 break;
                 
             case 'temporal_snow':
                 for (let i = 1; i < positions.length; i += 3) {
-                    positions[i] -= deltaTime * 2; // Slow fall
-                    positions[i] += Math.sin(elapsedTime * 2 + i) * 0.01; // Drift
+                    positions[i] -= dt * 2; // Slow fall
+                    positions[i] += Math.sin(t * 2 + i) * 0.01; // Drift
                     if (positions[i] < 0) positions[i] = 20;
                 }
                 break;
@@ -302,7 +302,7 @@ class EnvironmentalEffectsSystem {
             default:
                 // Gentle floating motion
                 for (let i = 1; i < positions.length; i += 3) {
-                    positions[i] += Math.sin(elapsedTime + i * 0.1) * deltaTime * 0.5;
+                    positions[i] += Math.sin(t + i * 0.1) * dt * 0.5;
                 }
                 break;
         }
@@ -315,7 +315,7 @@ class EnvironmentalEffectsSystem {
         }
     }
     
-    updateWhisperClouds(deltaTime, elapsedTime) {
+    updateWhisperClouds({ dt, t }) {
         this.whisperClouds.forEach(cloud => {
             if (!cloud || !cloud.userData) return;
             
@@ -335,24 +335,24 @@ class EnvironmentalEffectsSystem {
             }
             
             // Floating motion
-            cloud.position.y += Math.sin(elapsedTime + cloud.position.x * 0.1) * 0.005;
+            cloud.position.y += Math.sin(t + cloud.position.x * 0.1) * 0.005;
             
             // Particle swirl
             const particles = cloud.children[0];
             if (particles && particles.geometry && particles.geometry.attributes.position) {
                 const positions = particles.geometry.attributes.position.array;
                 for (let i = 0; i < positions.length; i += 3) {
-                    positions[i] += Math.sin(elapsedTime * 2 + i) * 0.01;
-                    positions[i + 2] += Math.cos(elapsedTime * 2 + i) * 0.01;
+                    positions[i] += Math.sin(t * 2 + i) * 0.01;
+                    positions[i + 2] += Math.cos(t * 2 + i) * 0.01;
                 }
                 particles.geometry.attributes.position.needsUpdate = true;
             }
             
             // Message display effect
             if (cloudData.activeMessage) {
-                cloud.scale.setScalar(1.2 + Math.sin(elapsedTime * 4) * 0.1);
+                cloud.scale.setScalar(1.2 + Math.sin(t * 4) * 0.1);
                 if (particles && particles.material) {
-                    particles.material.opacity = 0.7 + Math.sin(elapsedTime * 6) * 0.2;
+                    particles.material.opacity = 0.7 + Math.sin(t * 6) * 0.2;
                 }
             } else {
                 cloud.scale.setScalar(1);
@@ -363,7 +363,7 @@ class EnvironmentalEffectsSystem {
         });
     }
     
-    animateNarrativeShadows(deltaTime, elapsedTime) {
+    animateNarrativeShadows({ dt, t }) {
         this.narrativeShadows.forEach(shadow => {
             if (!shadow || !shadow.userData) return;
             
@@ -374,12 +374,12 @@ class EnvironmentalEffectsSystem {
             
             if (shadow.userData.choice) {
                 // Subtle pulsing for active shadows
-                const pulse = Math.sin(elapsedTime * 2) * 0.1 + 0.9;
+                const pulse = Math.sin(t * 2) * 0.1 + 0.9;
                 shadow.scale.setScalar(shadow.scale.x * pulse);
                 
                 // Fade out old shadows
                 if (shadow.material && shadow.material.opacity > 0) {
-                    shadow.material.opacity -= deltaTime * 0.01;
+                    shadow.material.opacity -= dt * 0.01;
                 }
             }
         });

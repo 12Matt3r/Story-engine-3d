@@ -227,17 +227,17 @@ class EnvironmentalSystems {
         }
     }
     
-    updateMemoryPools(deltaTime, elapsedTime) {
+    updateMemoryPools({ dt, t }) {
         this.memoryPools.forEach(memoryPool => {
             if (!memoryPool || !memoryPool.userData) return;
             
             const poolData = memoryPool.userData;
             if (poolData.material && poolData.material.uniforms && poolData.material.uniforms.time) {
-                poolData.material.uniforms.time.value = elapsedTime;
+                poolData.material.uniforms.time.value = t;
             }
             
             if (poolData.showingMemory) {
-                poolData.rippleTimer += deltaTime;
+                poolData.rippleTimer += dt;
                 if (poolData.material && poolData.material.uniforms && poolData.material.uniforms.rippleIntensity) {
                     poolData.material.uniforms.rippleIntensity.value = Math.sin(poolData.rippleTimer) * 0.5 + 0.5;
                 }
@@ -246,9 +246,9 @@ class EnvironmentalSystems {
                     poolData.fragments.forEach((fragment, index) => {
                         if (!fragment || !fragment.material || !fragment.position) return;
                         
-                        fragment.material.opacity = Math.min(0.8, fragment.material.opacity + deltaTime);
-                        fragment.position.y += Math.sin(elapsedTime * 2 + index) * 0.01;
-                        if (fragment.rotation) fragment.rotation.y += deltaTime;
+                        fragment.material.opacity = Math.min(0.8, fragment.material.opacity + dt);
+                        fragment.position.y += Math.sin(t * 2 + index) * 0.01;
+                        if (fragment.rotation) fragment.rotation.y += dt;
                     });
                 }
                 
@@ -261,12 +261,12 @@ class EnvironmentalSystems {
         });
     }
     
-    updateStoryThreads(deltaTime, elapsedTime) {
+    updateStoryThreads({ dt, t }) {
         this.storyThreads.forEach(thread => {
             if (!thread || !thread.userData) return;
             
             const threadData = thread.userData;
-            threadData.pulsePhase += deltaTime;
+            threadData.pulsePhase += dt;
             
             if (threadData.connectionStrength > 0) {
                 const pulseIntensity = Math.sin(threadData.pulsePhase * 2) * 0.3 + 0.7;
@@ -284,12 +284,12 @@ class EnvironmentalSystems {
                     });
                 }
                 
-                threadData.connectionStrength = Math.max(0, threadData.connectionStrength - deltaTime * 0.1);
+                threadData.connectionStrength = Math.max(0, threadData.connectionStrength - dt * 0.1);
             }
         });
     }
     
-    updateChoiceResonances(deltaTime, elapsedTime) {
+    updateChoiceResonances({ dt, t }) {
         this.choiceResonances.forEach(resonance => {
             if (!resonance || !resonance.userData) return;
             
@@ -297,7 +297,7 @@ class EnvironmentalSystems {
             
             if (resonanceData.activeChoices > 0) {
                 if (resonanceData.core && resonanceData.core.rotation && resonanceData.core.material) {
-                    resonanceData.core.rotation.y += deltaTime * (1 + resonanceData.resonanceLevel);
+                    resonanceData.core.rotation.y += dt * (1 + resonanceData.resonanceLevel);
                     resonanceData.core.material.opacity = 0.3 + resonanceData.resonanceLevel * 0.4;
                 }
                 
@@ -306,15 +306,15 @@ class EnvironmentalSystems {
                         if (!echo || !echo.mesh) return;
                         
                         if (index < resonanceData.activeChoices) {
-                            echo.angle += echo.speed * deltaTime;
+                            echo.angle += echo.speed * dt;
                             const x = Math.cos(echo.angle) * echo.radius;
                             const z = Math.sin(echo.angle) * echo.radius;
-                            const y = Math.sin(elapsedTime * 2 + index) * 0.3;
+                            const y = Math.sin(t * 2 + index) * 0.3;
                             if (echo.mesh.position) echo.mesh.position.set(x, y, z);
-                            if (echo.mesh.material) echo.mesh.material.opacity = Math.min(0.7, echo.mesh.material.opacity + deltaTime);
-                            if (echo.mesh.rotation) echo.mesh.rotation.y += deltaTime * 2;
+                            if (echo.mesh.material) echo.mesh.material.opacity = Math.min(0.7, echo.mesh.material.opacity + dt);
+                            if (echo.mesh.rotation) echo.mesh.rotation.y += dt * 2;
                         } else {
-                            if (echo.mesh.material) echo.mesh.material.opacity = Math.max(0, echo.mesh.material.opacity - deltaTime);
+                            if (echo.mesh.material) echo.mesh.material.opacity = Math.max(0, echo.mesh.material.opacity - dt);
                         }
                     });
                 }
@@ -327,7 +327,7 @@ class EnvironmentalSystems {
         });
     }
     
-    updateEmotionalLights(deltaTime, narratorPersonality) {
+    updateEmotionalLights({ dt }, narratorPersonality) {
         if (!narratorPersonality) return;
         
         try {
@@ -337,7 +337,7 @@ class EnvironmentalSystems {
             this.emotionalLights.forEach(light => {
                 if (!light || !light.userData) return;
                 
-                light.userData.pulsePhase += deltaTime * 2;
+                light.userData.pulsePhase += dt * 2;
                 
                 const moodColors = {
                     neutral: 0x888888,

@@ -1,28 +1,24 @@
 import * as THREE from 'three';
 
+import { Hovered } from './src/components/Hovered.js';
+import { Interactable } from './src/components/Interactable.js';
+
 class InteractionSystem {
-    constructor(scene, camera, storyEngine) {
+    constructor(scene, camera, storyEngine, world) {
         this.scene = scene;
         this.camera = camera;
         this.storyEngine = storyEngine;
+        this.world = world;
         this.raycaster = new THREE.Raycaster();
-        this.mouse = new THREE.Vector2();
-        this.interactableObjects = [];
-    }
-    
-    setInteractableObjects(objects) {
-        this.interactableObjects = objects;
+        this.currentlyHovered = null;
     }
     
     handleInteraction() {
-        this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
-        const intersects = this.raycaster.intersectObjects(this.interactableObjects);
-        
-        if (intersects.length > 0) {
-            const object = intersects[0].object;
-            if (object.userData.type === 'storyNode' && !object.userData.triggered) {
-                this.triggerStoryNode(object);
-                return object;
+        if (this.currentlyHovered) {
+            const interactable = this.currentlyHovered.get(Interactable);
+            if (interactable && !interactable.triggered) {
+                this.triggerStoryNode(this.currentlyHovered);
+                return this.currentlyHovered;
             }
         }
         return null;
@@ -52,6 +48,35 @@ class InteractionSystem {
         return node;
     }
     
+    update(ctx) {
+        this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
+
+        const interactableEntities = this.world.queryByTag('storyNode');
+        const interactableMeshes = [...interactableEntities].map(e => e.object3D);
+
+        const intersects = this.raycaster.intersectObjects(interactableMeshes);
+
+        let intersectedEntity = null;
+        if (intersects.length > 0) {
+            const mesh = intersects[0].object;
+            // Find the entity that owns this mesh
+            intersectedEntity = [...interactableEntities].find(e => e.object3D === mesh) || null;
+        }
+
+        // Manage the Hovered component
+        if (this.currentlyHovered && this.currentlyHovered !== intersectedEntity) {
+            if (this.currentlyHovered.has(Hovered)) {
+                this.currentlyHovered.remove(Hovered);
+            }
+        }
+
+        if (intersectedEntity && !intersectedEntity.has(Hovered)) {
+            intersectedEntity.add(new Hovered());
+        }
+
+        this.currentlyHovered = intersectedEntity;
+    }
+
     advanceStory() {
         if (this.storyEngine.canAdvance()) {
             this.storyEngine.advance();

@@ -571,12 +571,12 @@ class StoryDNASystem {
         });
     }
     
-    update(deltaTime, elapsedTime) {
+    update({ dt, t }) {
         // Animate DNA helix
         if (this.storyDNA.dnaVisualization) {
             const helix = this.storyDNA.dnaVisualization;
-            helix.rotation.y += deltaTime * helix.userData.rotationSpeed;
-            helix.userData.pulsePhase += deltaTime * 2;
+            helix.rotation.y += dt * helix.userData.rotationSpeed;
+            helix.userData.pulsePhase += dt * 2;
             
             // Pulse based on evolution level
             const scale = 1 + Math.sin(helix.userData.pulsePhase) * 
@@ -586,19 +586,19 @@ class StoryDNASystem {
         
         // Animate code fragments
         this.storyDNA.codeFragments.forEach(fragment => {
-            fragment.rotation.y += deltaTime * fragment.userData.rotationSpeed;
-            fragment.userData.floatPhase += deltaTime;
+            fragment.rotation.y += dt * fragment.userData.rotationSpeed;
+            fragment.userData.floatPhase += dt;
             fragment.position.y += Math.sin(fragment.userData.floatPhase) * 0.01;
             
             if (fragment.userData.activated) {
                 // Enhanced animation for activated fragments
-                const pulse = Math.sin(elapsedTime * 4) * 0.2 + 1;
+                const pulse = Math.sin(t * 4) * 0.2 + 1;
                 fragment.scale.setScalar(pulse);
                 fragment.children[1].material.opacity = 
-                    Math.min(1, fragment.children[1].material.opacity + deltaTime * 0.5);
+                    Math.min(1, fragment.children[1].material.opacity + dt * 0.5);
             } else {
                 fragment.children[1].material.opacity = 
-                    Math.max(0.3, fragment.children[1].material.opacity - deltaTime * 0.2);
+                    Math.max(0.3, fragment.children[1].material.opacity - dt * 0.2);
             }
         });
         
@@ -607,20 +607,20 @@ class StoryDNASystem {
             const markerData = marker.userData;
             
             if (markerData.material.uniforms) {
-                markerData.material.uniforms.time.value = elapsedTime;
+                markerData.material.uniforms.time.value = t;
             }
             
             // Animate orbiting rings
             marker.children.forEach(child => {
                 if (child.userData && child.userData.type === 'evolutionRing') {
-                    child.rotation.y += deltaTime * child.userData.rotationSpeed;
-                    child.rotation.z += deltaTime * child.userData.rotationSpeed * 0.5;
+                    child.rotation.y += dt * child.userData.rotationSpeed;
+                    child.rotation.z += dt * child.userData.rotationSpeed * 0.5;
                 }
             });
             
             // Pulse when recently evolved
             if (Date.now() - markerData.lastEvolution < 5000) {
-                const pulse = Math.sin(elapsedTime * 6) * 0.3 + 1;
+                const pulse = Math.sin(t * 6) * 0.3 + 1;
                 marker.scale.setScalar(pulse);
             } else {
                 marker.scale.setScalar(1);
@@ -634,7 +634,7 @@ class StoryDNASystem {
             // Matrix effect for activated cells
             patternData.cells.forEach((cell, index) => {
                 if (cell.userData.activated) {
-                    const wave = Math.sin(elapsedTime * 3 + index * 0.5) * 0.1 + 0.9;
+                    const wave = Math.sin(t * 3 + index * 0.5) * 0.1 + 0.9;
                     cell.scale.setScalar(wave);
                     
                     // Create occasional data sparks
@@ -645,7 +645,7 @@ class StoryDNASystem {
             });
             
             // Rotate entire pattern based on complexity
-            pattern.rotation.y += deltaTime * patternData.complexity * 0.5;
+            pattern.rotation.y += dt * patternData.complexity * 0.5;
         });
     }
     

@@ -11,10 +11,10 @@ class EnvironmentalStorytellingSystem {
         this.environmentalSystems = new EnvironmentalSystems(scene);
     }
     
-    update(deltaTime, elapsedTime, camera) {
+    update(ctx, camera) {
         try {
             if (this.narratorManifestations && typeof this.narratorManifestations.update === 'function') {
-                this.narratorManifestations.update(deltaTime, elapsedTime, camera, this.storyEngine);
+                this.narratorManifestations.update(ctx, camera, this.storyEngine);
             }
         } catch (error) {
             console.error('Error updating narrator manifestations:', error);
@@ -23,17 +23,17 @@ class EnvironmentalStorytellingSystem {
         try {
             if (this.environmentalSystems) {
                 if (typeof this.environmentalSystems.updateMemoryPools === 'function') {
-                    this.environmentalSystems.updateMemoryPools(deltaTime, elapsedTime);
+                    this.environmentalSystems.updateMemoryPools(ctx);
                 }
                 if (typeof this.environmentalSystems.updateStoryThreads === 'function') {
-                    this.environmentalSystems.updateStoryThreads(deltaTime, elapsedTime);
+                    this.environmentalSystems.updateStoryThreads(ctx);
                 }
                 if (typeof this.environmentalSystems.updateChoiceResonances === 'function') {
-                    this.environmentalSystems.updateChoiceResonances(deltaTime, elapsedTime);
+                    this.environmentalSystems.updateChoiceResonances(ctx);
                 }
                 if (typeof this.environmentalSystems.updateEmotionalLights === 'function' && 
                     this.storyEngine && this.storyEngine.narratorPersonality) {
-                    this.environmentalSystems.updateEmotionalLights(deltaTime, this.storyEngine.narratorPersonality);
+                    this.environmentalSystems.updateEmotionalLights(ctx, this.storyEngine.narratorPersonality);
                 }
             }
         } catch (error) {

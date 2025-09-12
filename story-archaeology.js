@@ -168,19 +168,19 @@ class StoryArchaeologySystem {
         }
     }
     
-    update(deltaTime, elapsedTime) {
+    update({ dt, t }) {
         // Update narrative runes
         this.storyArchaeology.narrativeRunes.forEach(rune => {
             if (rune.userData.isActive) {
-                rune.rotation.y += deltaTime * rune.userData.rotationSpeed;
-                rune.children[0].material.opacity = 0.6 + Math.sin(elapsedTime * 3) * 0.2;
+                rune.rotation.y += dt * rune.userData.rotationSpeed;
+                rune.children[0].material.opacity = 0.6 + Math.sin(t * 3) * 0.2;
             }
         });
         
         // Update choice obelisks
         this.storyArchaeology.choiceObelisks.forEach(obelisk => {
             if (obelisk.userData.isActive) {
-                const glow = Math.sin(elapsedTime * 2) * 0.3 + 0.7;
+                const glow = Math.sin(t * 2) * 0.3 + 0.7;
                 obelisk.children[0].material.opacity = 0.8 * glow * obelisk.userData.glowIntensity;
             }
         });

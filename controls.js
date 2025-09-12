@@ -107,7 +107,7 @@ class ControlsManager {
         this.autoMoveSpeed = 0;
     }
     
-    update(delta) {
+    update({ dt: delta }) {
         if (!this.controls.isLocked) return;
         
         const moveSpeed = 10; // units per second

@@ -9,6 +9,14 @@ import { EnvironmentalStorytellingSystem } from './environmental-storytelling.js
 import { StoryDNASystem } from './story-dna.js';
 import { StoryArchaeologySystem } from './story-archaeology.js';
 import { EnvironmentalEffectsSystem } from './environmental-effects.js';
+import { World } from './src/ecs/World.js';
+import { Interactable } from './src/components/Interactable.js';
+
+/**
+ * @typedef {object} UpdateCtx
+ * @property {number} dt - The time delta since the last frame in seconds (deltaTime).
+ * @property {number} t - The total elapsed time in seconds (elapsedTime).
+ */
 
 class Game {
     constructor() {
@@ -23,12 +31,14 @@ class Game {
         this.controlsManager = null;
         this.clock = new THREE.Clock();
         this.isInitialized = false;
+        this.world = null;
         
         this.init();
     }
     
     init() {
         try {
+            this.world = new World();
             this.setupScene();
             this.setupCamera();
             this.setupRenderer();
@@ -118,18 +128,16 @@ class Game {
     }
     
     setupWorld() {
-        this.worldBuilder = new WorldBuilder(this.scene);
-        this.worldBuilder.createWorld();
+        this.worldBuilder = new WorldBuilder(this.scene, this.world);
+        this.worldBuilder.createWorld(this.camera);
     }
     
     setupInteractionSystem() {
         this.interactionSystem = new InteractionSystem(
             this.scene, 
             this.camera, 
-            this.storyEngine
-        );
-        this.interactionSystem.setInteractableObjects(
-            this.worldBuilder.getInteractableObjects()
+            this.storyEngine,
+            this.world
         );
     }
     
@@ -264,25 +272,28 @@ class Game {
         if (this.storyEngine.isWaitingForDecision) return;
         
         try {
-            const interactedObject = this.interactionSystem.handleInteraction();
-            if (interactedObject) {
+            const interactedEntity = this.interactionSystem.handleInteraction();
+            if (interactedEntity) {
+                const interactable = interactedEntity.get(Interactable);
+                if (!interactable) return;
+
                 if (this.environmentalStorytelling && typeof this.environmentalStorytelling.activateMemoryPool === 'function') {
                     this.environmentalStorytelling.activateMemoryPool(
-                        interactedObject.userData.storyType, 
-                        interactedObject.position
+                        interactable.storyType,
+                        interactedEntity.object3D.position
                     );
                 }
                 
                 if (this.storyArchaeology && typeof this.storyArchaeology.recordChoiceInArchaeology === 'function') {
                     this.storyArchaeology.recordChoiceInArchaeology(
-                        interactedObject, 
+                        interactedEntity,
                         this.storyDNASystem
                     );
                 }
                 
                 if (this.environmentalEffects && typeof this.environmentalEffects.updateStoryWeather === 'function') {
                     this.environmentalEffects.updateStoryWeather(
-                        interactedObject.userData.storyType
+                        interactable.storyType
                     );
                 }
             }
@@ -349,31 +360,34 @@ class Game {
         requestAnimationFrame(this.animate.bind(this));
         
         try {
-            const deltaTime = this.clock.getDelta();
-            const elapsedTime = this.clock.getElapsedTime();
+            const dt = this.clock.getDelta();
+            const t = this.clock.getElapsedTime();
+            /** @type {UpdateCtx} */
+            const ctx = { dt, t };
             
             if (this.controlsManager && typeof this.controlsManager.update === 'function') {
-                this.controlsManager.update(deltaTime);
+                this.controlsManager.update(ctx);
             }
             
             if (this.environmentalStorytelling && typeof this.environmentalStorytelling.update === 'function') {
-                this.environmentalStorytelling.update(deltaTime, elapsedTime, this.camera);
+                this.environmentalStorytelling.update(ctx, this.camera);
             }
             
             if (this.storyDNASystem && typeof this.storyDNASystem.update === 'function') {
-                this.storyDNASystem.update(deltaTime, elapsedTime);
+                this.storyDNASystem.update(ctx);
             }
             
             if (this.storyArchaeology && typeof this.storyArchaeology.update === 'function') {
-                this.storyArchaeology.update(deltaTime, elapsedTime);
+                this.storyArchaeology.update(ctx);
             }
             
             if (this.environmentalEffects && typeof this.environmentalEffects.update === 'function') {
-                this.environmentalEffects.update(deltaTime, elapsedTime);
+                this.environmentalEffects.update(ctx);
             }
-            
-            this.updateDynamicGround(elapsedTime);
-            this.updateSurrealObjects(deltaTime, elapsedTime);
+
+            if (this.interactionSystem && typeof this.interactionSystem.update === 'function') {
+                this.interactionSystem.update(ctx);
+            }
             
             if (this.renderer && this.scene && this.camera) {
                 this.renderer.render(this.scene, this.camera);
@@ -382,25 +396,6 @@ class Game {
             console.warn('Error in animation loop:', error);
             // Continue the animation loop even if there's an error
         }
-    }
-    
-    updateDynamicGround(elapsedTime) {
-        const ground = this.scene.children.find(child => 
-            child.userData && child.userData.type === 'dynamicGround'
-        );
-        if (ground && ground.userData.material.uniforms) {
-            ground.userData.material.uniforms.time.value = elapsedTime;
-            ground.userData.material.uniforms.playerPos.value.copy(this.camera.position);
-        }
-    }
-    
-    updateSurrealObjects(deltaTime, elapsedTime) {
-        this.scene.children.forEach(child => {
-            if (child.userData && child.userData.rotationSpeed !== undefined) {
-                child.rotation.y += child.userData.rotationSpeed;
-                child.position.y += Math.sin(elapsedTime * child.userData.floatSpeed) * 0.01;
-            }
-        });
     }
     
     showErrorMessage(message) {
