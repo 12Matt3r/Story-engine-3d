@@ -11,6 +11,7 @@ import { StoryArchaeologySystem } from './story-archaeology.js';
 import { EnvironmentalEffectsSystem } from './environmental-effects.js';
 import { World } from './src/ecs/World.js';
 import { Interactable } from './src/components/Interactable.js';
+import { RenderSystem } from './src/systems/RenderSystem.js';
 
 /**
  * @typedef {object} UpdateCtx
@@ -32,6 +33,7 @@ class Game {
         this.clock = new THREE.Clock();
         this.isInitialized = false;
         this.world = null;
+        this.renderSystem = null;
         
         this.init();
     }
@@ -42,6 +44,7 @@ class Game {
             this.setupScene();
             this.setupCamera();
             this.setupRenderer();
+            this.setupRenderSystem();
             this.setupControls();
             this.setupStoryEngine();
             this.setupUIManager();
@@ -110,6 +113,10 @@ class Game {
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.setClearColor(0x1a1a2e, 1);
     }
+
+    setupRenderSystem() {
+        this.renderSystem = new RenderSystem(this.world, this.scene, this.renderer);
+    }
     
     setupControls() {
         this.controls = new PointerLockControls(this.camera, document.body);
@@ -128,7 +135,7 @@ class Game {
     }
     
     setupWorld() {
-        this.worldBuilder = new WorldBuilder(this.scene, this.world);
+        this.worldBuilder = new WorldBuilder(this.world);
         this.worldBuilder.createWorld(this.camera);
     }
     
@@ -368,6 +375,10 @@ class Game {
             if (this.controlsManager && typeof this.controlsManager.update === 'function') {
                 this.controlsManager.update(ctx);
             }
+
+            if (this.world && typeof this.world.update === 'function') {
+                this.world.update(ctx);
+            }
             
             if (this.environmentalStorytelling && typeof this.environmentalStorytelling.update === 'function') {
                 this.environmentalStorytelling.update(ctx, this.camera);
@@ -388,9 +399,9 @@ class Game {
             if (this.interactionSystem && typeof this.interactionSystem.update === 'function') {
                 this.interactionSystem.update(ctx);
             }
-            
-            if (this.renderer && this.scene && this.camera) {
-                this.renderer.render(this.scene, this.camera);
+
+            if (this.renderSystem && typeof this.renderSystem.update === 'function') {
+                this.renderSystem.update({ camera: this.camera });
             }
         } catch (error) {
             console.warn('Error in animation loop:', error);

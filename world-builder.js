@@ -21,8 +21,7 @@ export function createSurrealCube({ size = 1, color = 0xff00ff, rotate = {}, flo
 }
 
 class WorldBuilder {
-    constructor(scene, world) {
-        this.scene = scene;
+    constructor(world) {
         this.world = world;
     }
     
@@ -82,7 +81,6 @@ class WorldBuilder {
         groundEntity.add(new DynamicGround({ material: groundMaterial, camera: camera }));
 
         this.world.addEntity(groundEntity, { tags: ['ground'] });
-        this.scene.add(groundMesh);
     }
     
     createStoryNodes() {
@@ -118,7 +116,6 @@ class WorldBuilder {
             entity.add(new HoverHighlight());
             
             this.world.addEntity(entity, { tags: ['storyNode'] });
-            this.scene.add(mesh);
             
             this.addFloatingText(config.title, mesh.position, 0.3);
         });
@@ -140,7 +137,6 @@ class WorldBuilder {
             );
 
             this.world.addEntity(entity, { tags: ['surreal'] });
-            this.scene.add(entity.object3D);
         }
     }
     
@@ -156,7 +152,8 @@ class WorldBuilder {
             const stair = new THREE.Mesh(stairGeometry, stairMaterial);
             stair.position.set(20, i * 2, -20 + i * 3);
             stair.rotation.y = i * 0.3;
-            this.scene.add(stair);
+            const entity = new Entity({ object3D: stair });
+            this.world.addEntity(entity, { tags: ['architectural'] });
         }
         
         for (let i = 0; i < 6; i++) {
@@ -173,7 +170,8 @@ class WorldBuilder {
                 (Math.random() - 0.5) * 60
             );
             pillar.rotation.z = (Math.random() - 0.5) * 0.5;
-            this.scene.add(pillar);
+            const entity = new Entity({ object3D: pillar });
+            this.world.addEntity(entity, { tags: ['architectural'] });
         }
     }
     
@@ -195,16 +193,9 @@ class WorldBuilder {
         sprite.position.y += 2;
         sprite.scale.set(4 * scale, 1 * scale, 1);
         
-        this.scene.add(sprite);
+        const entity = new Entity({ object3D: sprite });
+        this.world.addEntity(entity);
         return sprite;
-    }
-    
-    getInteractableObjects() {
-        return this.interactableObjects;
-    }
-    
-    getStoryNodes() {
-        return this.storyNodes;
     }
 }
 
